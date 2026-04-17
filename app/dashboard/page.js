@@ -1,4 +1,7 @@
 'use client';
+import { useEffect, useState } from 'react';
+import { supabase } from '../../lib/supabase';
+import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
@@ -17,14 +20,28 @@ const stats2 = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.push('/login');
+      else setChecking(false);
+    });
+  }, []);
+
+  if (checking) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#6b7280' }}>
+      Loading...
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Topbar />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar />
         <main style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8f9fb' }}>
-
-          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Dashboard</h1>
             <div style={{ display: 'flex', gap: '4px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '3px' }}>
@@ -34,7 +51,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats Row 1 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '16px' }}>
             {stats.map(s => (
               <div key={s.label} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
@@ -49,7 +65,6 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Stats Row 2 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '16px' }}>
             {stats2.map(s => (
               <div key={s.label} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
@@ -60,7 +75,6 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {/* Charts Row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
               <div style={{ fontWeight: 600, marginBottom: '4px' }}>Revenue Overview</div>
@@ -83,7 +97,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Bottom Row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
               <div style={{ fontWeight: 600, marginBottom: '12px' }}>Quote Conversion</div>
@@ -102,7 +115,6 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-
         </main>
       </div>
     </div>
