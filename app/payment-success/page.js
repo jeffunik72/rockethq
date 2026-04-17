@@ -11,7 +11,6 @@ function PaymentSuccessContent() {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Update invoice balance in Supabase
     async function updateInvoice() {
       if (!invoiceId || !amount) return;
       const { data: invoice } = await supabase
@@ -19,20 +18,15 @@ function PaymentSuccessContent() {
         .select('*')
         .eq('id', invoiceId)
         .single();
-
       if (!invoice) return;
-
       const newAmountPaid = (invoice.amount_paid || 0) + amount;
       const newAmountDue = Math.max(0, invoice.amount_total - newAmountPaid);
       const newStatus = newAmountDue === 0 ? 'Paid' : 'Partial';
-
       await supabase.from('invoices').update({
         amount_paid: newAmountPaid,
         amount_due: newAmountDue,
         status: newStatus,
       }).eq('id', invoiceId);
-
-      // If fully paid update order status
       if (newStatus === 'Paid') {
         await supabase.from('orders')
           .update({ status: 'New', payment_status: 'Paid' })
@@ -45,7 +39,6 @@ function PaymentSuccessContent() {
           .eq('status', 'Awaiting Payment');
       }
     }
-
     updateInvoice();
   }, [invoiceId, amount]);
 
@@ -55,7 +48,7 @@ function PaymentSuccessContent() {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          window.location.href = `/portal/${portalToken}`;
+          window.location.href = '/portal/' + portalToken;
           return 0;
         }
         return prev - 1;
@@ -63,6 +56,8 @@ function PaymentSuccessContent() {
     }, 1000);
     return () => clearInterval(timer);
   }, [portalToken]);
+
+  const circumference = 2 * Math.PI * 28;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8f9fb', fontFamily: 'system-ui, sans-serif' }}>
@@ -76,10 +71,8 @@ function PaymentSuccessContent() {
           <div style={{ fontSize: '13px', color: '#15803d', fontWeight: 600 }}>Payment confirmed</div>
           <div style={{ fontSize: '12px', color: '#16a34a', marginTop: '4px' }}>You will receive a confirmation email shortly</div>
         </div>
-
         {portalToken && (
           <div>
-            {/* Countdown Circle */}
             <div style={{ position: 'relative', width: '64px', height: '64px', margin: '0 auto 16px' }}>
               <svg width="64" height="64" style={{ transform: 'rotate(-90deg)' }}>
                 <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="4" />
@@ -88,8 +81,8 @@ function PaymentSuccessContent() {
                   fill="none"
                   stroke="#2563eb"
                   strokeWidth="4"
-                  strokeDasharray={`${2 * Math.PI * 28}`}
-                  strokeDashoffset={`${2 * Math.PI * 28 * (1 - countdown / 5)}`}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference * (1 - countdown / 5)}
                   style={{ transition: 'stroke-dashoffset 1s linear' }}
                 />
               </svg>
@@ -97,12 +90,11 @@ function PaymentSuccessContent() {
                 {countdown}
               </div>
             </div>
-
             <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
               Redirecting to your portal in {countdown} second{countdown !== 1 ? 's' : ''}...
             </p>
             
-              href={`/portal/${portalToken}`}
+              href={'/portal/' + portalToken}
               style={{ display: 'inline-block', background: '#2563eb', color: 'white', padding: '12px 28px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
             >
               Return to Portal Now
