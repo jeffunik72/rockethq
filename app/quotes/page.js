@@ -171,14 +171,12 @@ export default function QuotesPage() {
                       <td style={{ padding: '10px 16px' }}>
                         <span style={{ background: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>{q.status}</span>
                       </td>
-                      <td style={{ padding: '10px 16px' }}>
-                        <button
-                          onClick={() => sendQuote(q, i)}
+                      <td style={{ padding: '10px 16px' }}><div style={{ display: 'flex', gap: '6px' }}><button onClick={() => router.push('/quotes/' + q.id)} style={{ padding: '5px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>View →</button><button onClick={() => sendQuote(q, i)}
                           disabled={sending === q.id}
                           style={{ padding: '5px 12px', background: sending === q.id ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: sending === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
                         >
                           {sending === q.id ? 'Sending...' : '✉ Send'}
-                        </button>
+                        </button></div>
                       </td>
                     </tr>
                   );
