@@ -94,7 +94,7 @@ function PaymentSuccessContent() {
               Redirecting to your portal in {countdown} second{countdown !== 1 ? 's' : ''}...
             </p>
             
-              href={'/portal/' + portalToken}
+             < a href={'/portal/' + portalToken}
               style={{ display: 'inline-block', background: '#2563eb', color: 'white', padding: '12px 28px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' }}
             >
               Return to Portal Now
