@@ -22,7 +22,7 @@ export default function CustomerPortal({ params }) {
   const [actionLoading, setActionLoading] = useState(null);
   const [shopSettings, setShopSettings] = useState(null);
 
-  useEffect(() => { fetchCustomerData(); fetchShopSettings(); }, [token]);
+  useEffect(() => { fetchCustomerData(); }, [token]);
 
   async function fetchCustomerData() {
     setLoading(true);
@@ -45,13 +45,11 @@ export default function CustomerPortal({ params }) {
     setQuotes(quotesData || []);
     setOrders(ordersData || []);
     setInvoices(invoicesData || []);
+    const { data: settingsData } = await supabase.from('settings').select('*').single();
+    if (settingsData) setShopSettings(settingsData);
+
     setLoading(false);
   }
-
-async function fetchShopSettings() {
-  const { data } = await supabase.from('settings').select('*').single();
-  if (data) setShopSettings(data);
-}
 
   async function acceptQuote(quote) {
     setActionLoading(quote.id);
