@@ -4,11 +4,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(request) {
   try {
-    const { amount, customerName, customerEmail, orderId, description, portalToken } = await request.json();
+    const { amount, customerName, customerEmail, orderId, description, portalToken, invoiceId } = await request.json();
 
     const origin = request.headers.get('origin');
     const successUrl = portalToken
-      ? `${origin}/payment-success?portal_token=${portalToken}`
+      ? `${origin}/payment-success?portal_token=${portalToken}&invoice_id=${invoiceId}&amount=${amount}`
       : `${origin}/payment-success`;
 
     const session = await stripe.checkout.sessions.create({
@@ -33,6 +33,8 @@ export async function POST(request) {
       metadata: {
         order_id: orderId,
         customer_name: customerName,
+        invoice_id: invoiceId,
+        amount: amount,
       },
     });
 

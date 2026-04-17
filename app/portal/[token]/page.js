@@ -109,6 +109,7 @@ export default function CustomerPortal({ params }) {
         orderId: invoice.id,
         description: type === 'deposit' ? '50% Deposit — Blue Rocket' : type === 'custom' ? 'Custom Payment — Blue Rocket' : 'Full Payment — Blue Rocket',
         portalToken: token,
+invoiceId: invoice.id,
       }),
     });
     const { url, error } = await res.json();
