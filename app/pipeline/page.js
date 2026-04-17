@@ -111,7 +111,7 @@ export default function PipelinePage() {
       .insert([{
         customer_id: finalCustomerId,
         status: 'New Quote',
-        total: lead.estimated_value || 0,
+        total: 0,
         due_date: dueDate || null,
         notes: lead.notes || '',
       }])
@@ -128,7 +128,7 @@ export default function PipelinePage() {
     setShowConvertModal(false);
     setSelectedLead(null);
     fetchLeads();
-    router.push('/quotes');
+    router.push('/quotes/' + quote.id);
   }
 
   function handleDragStart(lead) { setDragLead(lead); }
