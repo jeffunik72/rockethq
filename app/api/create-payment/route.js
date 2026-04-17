@@ -4,7 +4,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export async function POST(request) {
   try {
-    const { amount, customerName, customerEmail, orderId, description } = await request.json();
+    const { amount, customerName, customerEmail, orderId, description, portalToken } = await request.json();
+
+    const origin = request.headers.get('origin');
+    const successUrl = portalToken
+      ? `${origin}/payment-success?portal_token=${portalToken}`
+      : `${origin}/payment-success`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -23,8 +28,8 @@ export async function POST(request) {
         },
       ],
       mode: 'payment',
-      success_url: `${request.headers.get('origin')}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${request.headers.get('origin')}/payment-cancelled`,
+      success_url: successUrl,
+      cancel_url: `${origin}/payment-cancelled`,
       metadata: {
         order_id: orderId,
         customer_name: customerName,
