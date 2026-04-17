@@ -73,6 +73,14 @@ export default function CustomerPortal({ params }) {
         notes: quote.notes || '',
       }]);
 
+      // Update lead final value
+      await supabase.from('leads')
+        .update({ 
+          final_value: quote.total,
+          invoice_id: invoice.id,
+        })
+        .eq('quote_id', quote.id);
+
       await fetchCustomerData();
       setSelectedInvoice(invoice);
       setShowPaymentModal(true);

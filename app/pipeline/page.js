@@ -142,7 +142,7 @@ export default function PipelinePage() {
   function getLeadsByStage(stage) { return leads.filter(l => l.stage === stage); }
 
   const totalValue = leads.filter(l => l.stage !== 'Closed Lost').reduce((s, l) => s + (l.estimated_value || 0), 0);
-  const wonValue = leads.filter(l => l.stage === 'Closed Won').reduce((s, l) => s + (l.estimated_value || 0), 0);
+  const wonValue = leads.filter(l => l.stage === 'Closed Won').reduce((s, l) => s + (l.final_value || l.estimated_value || 0), 0);
   const activeLeads = leads.filter(l => l.stage !== 'Closed Won' && l.stage !== 'Closed Lost').length;
 
   if (checking) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#6b7280' }}>Loading...</div>;
@@ -159,7 +159,7 @@ export default function PipelinePage() {
             <div>
               <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Pipeline</h1>
               <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '2px' }}>
-                {activeLeads} active leads · ${totalValue.toFixed(2)} total value · ${wonValue.toFixed(2)} won
+                {activeLeads} active leads · ${totalValue.toFixed(2)} pipeline · ${wonValue.toFixed(2)} closed
               </div>
             </div>
             <button onClick={() => setShowModal(true)} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ Add Lead</button>
@@ -212,9 +212,14 @@ export default function PipelinePage() {
                         {lead.email && <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '2px' }}>✉ {lead.email}</div>}
                         {lead.phone && <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px' }}>📞 {lead.phone}</div>}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                          {lead.estimated_value > 0 && (
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>${lead.estimated_value.toFixed(2)}</span>
-                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {lead.estimated_value > 0 && (
+                              <span style={{ fontSize: '12px', color: '#6b7280' }}>Est: ${lead.estimated_value.toFixed(2)}</span>
+                            )}
+                            {lead.final_value > 0 && (
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Final: ${lead.final_value.toFixed(2)}</span>
+                            )}
+                          </div>
                           {lead.source && (
                             <span style={{ fontSize: '10px', background: '#f3f4f6', color: '#6b7280', padding: '2px 7px', borderRadius: '100px', fontWeight: 600 }}>{lead.source}</span>
                           )}
@@ -357,11 +362,26 @@ export default function PipelinePage() {
               </div>
 
               {/* Value */}
-              {selectedLead.estimated_value > 0 && (
-                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '14px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {(selectedLead.estimated_value > 0 || selectedLead.final_value > 0) && (                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '14px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', color: '#15803d', fontWeight: 600 }}>Estimated Value</span>
                   <span style={{ fontSize: '18px', fontWeight: 700, color: '#15803d' }}>${selectedLead.estimated_value.toFixed(2)}</span>
-                </div>
+              </div>
+            )}
+            {selectedLead.final_value > 0 && (
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '14px 16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#15803d', fontWeight: 600 }}>Final Invoice Value</span>
+                <span style={{ fontSize: '18px', fontWeight: 700, color: '#15803d' }}>${selectedLead.final_value.toFixed(2)}</span>
+              </div>
+            )}
+            {selectedLead.estimated_value > 0 && selectedLead.final_value > 0 && (
+              <div style={{ background: selectedLead.final_value >= selectedLead.estimated_value ? '#f0fdf4' : '#fef2f2', border: '1px solid', borderColor: selectedLead.final_value >= selectedLead.estimated_value ? '#86efac' : '#fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280' }}>vs Estimate</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: selectedLead.final_value >= selectedLead.estimated_value ? '#15803d' : '#dc2626' }}>
+                  {selectedLead.final_value >= selectedLead.estimated_value ? '+' : ''}{(selectedLead.final_value - selectedLead.estimated_value).toFixed(2)}
+                </span>
+              </div>
+            
+                
               )}
 
               {/* Notes */}
