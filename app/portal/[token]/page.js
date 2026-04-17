@@ -20,8 +20,9 @@ export default function CustomerPortal({ params }) {
   const [paymentType, setPaymentType] = useState('full');
   const [customAmount, setCustomAmount] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
+  const [shopSettings, setShopSettings] = useState(null);
 
-  useEffect(() => { fetchCustomerData(); }, [token]);
+  useEffect(() => { fetchCustomerData(); fetchShopSettings(); }, [token]);
 
   async function fetchCustomerData() {
     setLoading(true);
@@ -46,6 +47,11 @@ export default function CustomerPortal({ params }) {
     setInvoices(invoicesData || []);
     setLoading(false);
   }
+
+async function fetchShopSettings() {
+  const { data } = await supabase.from('settings').select('*').single();
+  if (data) setShopSettings(data);
+}
 
   async function acceptQuote(quote) {
     setActionLoading(quote.id);
@@ -115,7 +121,7 @@ export default function CustomerPortal({ params }) {
         customerName: customer.name,
         customerEmail: customer.email,
         orderId: invoice.id,
-        description: type === 'deposit' ? '50% Deposit — Blue Rocket' : type === 'custom' ? 'Custom Payment — Blue Rocket' : 'Full Payment — Blue Rocket',
+        description: type === 'deposit' ? `${shopSettings?.deposit_percentage || 50}% Deposit — ${shopSettings?.shop_name || 'Blue Rocket'}` : type === 'custom' ? `Custom Payment — ${shopSettings?.shop_name || 'Blue Rocket'}` : `Full Payment — ${shopSettings?.shop_name || 'Blue Rocket'}`,
         portalToken: token,
 invoiceId: invoice.id,
       }),
@@ -128,7 +134,10 @@ invoiceId: invoice.id,
   function getPaymentAmount() {
     if (!selectedInvoice) return 0;
     if (paymentType === 'full') return selectedInvoice.amount_due;
-    if (paymentType === 'deposit') return Math.round(selectedInvoice.amount_due * 0.5 * 100) / 100;
+    if (paymentType === 'deposit') {
+  const pct = (shopSettings?.deposit_percentage || 50) / 100;
+  return Math.round(selectedInvoice.amount_due * pct * 100) / 100;
+}
     if (paymentType === 'custom') return parseFloat(customAmount) || 0;
     return 0;
   }
@@ -180,7 +189,7 @@ invoiceId: invoice.id,
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ fontSize: '22px' }}>🚀</div>
             <div>
-              <div style={{ color: 'white', fontWeight: 700, fontSize: '15px' }}>Blue Rocket</div>
+              <div style={{ color: 'white', fontWeight: 700, fontSize: '15px' }}>{shopSettings?.shop_name || 'Blue Rocket'}</div>
               <div style={{ color: '#9ca3af', fontSize: '11px' }}>Customer Portal</div>
             </div>
           </div>
@@ -196,7 +205,7 @@ invoiceId: invoice.id,
         {/* Welcome */}
         <div style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '4px', color: '#111827' }}>Welcome back, {customer.name.split(' ')[0]}! 👋</h1>
-          <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>Here's everything you need in one place.</p>
+          <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>{shopSettings?.portal_welcome_message || "Here's everything you need in one place."}</p>
         </div>
 
         {/* ── SECTION 1: QUOTES AWAITING REVIEW ── */}
@@ -464,7 +473,7 @@ invoiceId: invoice.id,
                 <button onClick={() => setPaymentType('deposit')} style={{ padding: '16px', background: paymentType === 'deposit' ? '#eff6ff' : '#f9fafb', border: `2px solid ${paymentType === 'deposit' ? '#2563eb' : '#e5e7eb'}`, borderRadius: '10px', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: paymentType === 'deposit' ? '#1d4ed8' : '#111827' }}>50% Deposit</div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: paymentType === 'deposit' ? '#1d4ed8' : '#111827' }}>{shopSettings?.deposit_percentage || 50}% Deposit</div>
                       <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>Balance due on completion</div>
                     </div>
                     <div style={{ fontSize: '18px', fontWeight: 700, color: paymentType === 'deposit' ? '#2563eb' : '#111827' }}>${(selectedInvoice.amount_due * 0.5).toFixed(2)}</div>

@@ -22,6 +22,7 @@ const priorityColors = {
   'Rush': { bg: '#fee2e2', color: '#b91c1c' },
 };
 
+
 export default function ProductionPage() {
   const [jobs, setJobs] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -30,19 +31,29 @@ export default function ProductionPage() {
   const [showModal, setShowModal] = useState(false);
   const [dragJob, setDragJob] = useState(null);
   const [dragOver, setDragOver] = useState(null);
+  const [imprintMethods, setImprintMethods] = useState(['Embroidery', 'Screen Printing', 'DTG', 'DTF', 'Heat Press', 'Vinyl']);
   const [form, setForm] = useState({
     title: '', description: '', customer_id: '', order_id: '',
     stage: 'New', method: '', due_date: '', quantity: '',
     assigned_to: '', notes: '', priority: 'Normal'
   });
   const router = useRouter();
-
+  
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.push('/login');
-      else { setChecking(false); fetchJobs(); fetchCustomers(); fetchOrders(); }
-    });
-  }, []);
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!session) router.push('/login');
+    else { 
+      setChecking(false); 
+      fetchJobs(); 
+      fetchCustomers(); 
+      fetchOrders();
+      // Add this:
+      supabase.from('settings').select('imprint_methods').single().then(({ data }) => {
+        if (data?.imprint_methods?.length > 0) setImprintMethods(data.imprint_methods);
+      });
+    }
+  });
+}, []);
 
   async function fetchJobs() {
     const { data } = await supabase
@@ -211,7 +222,7 @@ export default function ProductionPage() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Imprint Method</label>
                   <select value={form.method} onChange={e => setForm({ ...form, method: e.target.value })} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}>
                     <option value="">Select method...</option>
-                    {['Embroidery', 'Screen Printing', 'DTG', 'DTF', 'Heat Press', 'Vinyl'].map(m => <option key={m} value={m}>{m}</option>)}
+                    {imprintMethods.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
