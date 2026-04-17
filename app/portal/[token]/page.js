@@ -36,16 +36,16 @@ export default function CustomerPortal({ params }) {
     if (!customerData) { setNotFound(true); setLoading(false); return; }
     setCustomer(customerData);
 
-    const [{ data: quotesData }, { data: ordersData }, { data: invoicesData }] = await Promise.all([
+    const [{ data: quotesData }, { data: ordersData }, { data: invoicesData }, { data: settingsData }] = await Promise.all([
       supabase.from('quotes').select('*, quote_items(*)').eq('customer_id', customerData.id).order('created_at', { ascending: false }),
       supabase.from('orders').select('*').eq('customer_id', customerData.id).order('created_at', { ascending: false }),
       supabase.from('invoices').select('*').eq('customer_id', customerData.id).order('created_at', { ascending: false }),
+      supabase.from('settings').select('*').single(),
     ]);
 
     setQuotes(quotesData || []);
     setOrders(ordersData || []);
     setInvoices(invoicesData || []);
-    const { data: settingsData } = await supabase.from('settings').select('*').single();
     if (settingsData) setShopSettings(settingsData);
 
     setLoading(false);
