@@ -1,22 +1,28 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', city: '', state: '' });
+  const router = useRouter();
 
   useEffect(() => {
-    fetchCustomers();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.push('/login');
+      else { setChecking(false); fetchCustomers(); }
+    });
   }, []);
 
   async function fetchCustomers() {
     setLoading(true);
-    const { data, error } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
     if (data) setCustomers(data);
     setLoading(false);
   }
@@ -30,23 +36,18 @@ export default function CustomersPage() {
     }
   }
 
+  if (checking) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#6b7280' }}>Loading...</div>;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Topbar />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar />
         <main style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8f9fb' }}>
-
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Customers</h1>
-            <button
-              onClick={() => setShowModal(true)}
-              style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}
-            >
-              + New Customer
-            </button>
+            <button onClick={() => setShowModal(true)} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ New Customer</button>
           </div>
-
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -57,12 +58,8 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && (
-                  <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>Loading...</td></tr>
-                )}
-                {!loading && customers.length === 0 && (
-                  <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No customers yet. Add your first one!</td></tr>
-                )}
+                {loading && <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>Loading...</td></tr>}
+                {!loading && customers.length === 0 && <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No customers yet. Add your first one!</td></tr>}
                 {customers.map(c => (
                   <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                     <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>{c.name}</td>
@@ -76,7 +73,6 @@ export default function CustomersPage() {
               </tbody>
             </table>
           </div>
-
         </main>
       </div>
 
@@ -97,12 +93,7 @@ export default function CustomersPage() {
             ].map(field => (
               <div key={field.key} style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>{field.label}</label>
-                <input
-                  value={form[field.key]}
-                  onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                  placeholder={field.placeholder}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }}
-                />
+                <input value={form[field.key]} onChange={e => setForm({ ...form, [field.key]: e.target.value })} placeholder={field.placeholder} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
               </div>
             ))}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>

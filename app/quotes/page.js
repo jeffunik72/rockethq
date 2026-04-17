@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useRouter } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
@@ -8,21 +9,22 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ customer_id: '', due_date: '', notes: '', status: 'New Quote' });
   const [items, setItems] = useState([{ description: '', category: '', quantity: 1, unit_price: 0, total: 0 }]);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchQuotes();
-    fetchCustomers();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.push('/login');
+      else { setChecking(false); fetchQuotes(); fetchCustomers(); }
+    });
   }, []);
 
   async function fetchQuotes() {
     setLoading(true);
-    const { data } = await supabase
-      .from('quotes')
-      .select('*, customers(name, company)')
-      .order('created_at', { ascending: false });
+    const { data } = await supabase.from('quotes').select('*, customers(name, company)').order('created_at', { ascending: false });
     if (data) setQuotes(data);
     setLoading(false);
   }
@@ -55,11 +57,7 @@ export default function QuotesPage() {
 
   async function saveQuote() {
     const total = getTotal();
-    const { data: quote, error } = await supabase
-      .from('quotes')
-      .insert([{ ...form, total }])
-      .select()
-      .single();
+    const { data: quote, error } = await supabase.from('quotes').insert([{ ...form, total }]).select().single();
     if (error) { alert('Error: ' + error.message); return; }
     const quoteItems = items.map(item => ({ ...item, quote_id: quote.id }));
     await supabase.from('quote_items').insert(quoteItems);
@@ -76,6 +74,8 @@ export default function QuotesPage() {
     'Ordered': { bg: '#ede9fe', color: '#5b21b6' },
     'Cancelled': { bg: '#fee2e2', color: '#b91c1c' },
   };
+
+  if (checking) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#6b7280' }}>Loading...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
