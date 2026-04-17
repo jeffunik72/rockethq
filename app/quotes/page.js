@@ -11,6 +11,7 @@ export default function QuotesPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [sending, setSending] = useState(null);
   const [form, setForm] = useState({ customer_id: '', due_date: '', notes: '', status: 'New Quote' });
   const [items, setItems] = useState([{ description: '', category: '', quantity: 1, unit_price: 0, total: 0 }]);
   const router = useRouter();
@@ -24,13 +25,16 @@ export default function QuotesPage() {
 
   async function fetchQuotes() {
     setLoading(true);
-    const { data } = await supabase.from('quotes').select('*, customers(name, company)').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('quotes')
+      .select('*, customers(name, company, email)')
+      .order('created_at', { ascending: false });
     if (data) setQuotes(data);
     setLoading(false);
   }
 
   async function fetchCustomers() {
-    const { data } = await supabase.from('customers').select('id, name, company');
+    const { data } = await supabase.from('customers').select('id, name, company, email');
     if (data) setCustomers(data);
   }
 
@@ -57,7 +61,11 @@ export default function QuotesPage() {
 
   async function saveQuote() {
     const total = getTotal();
-    const { data: quote, error } = await supabase.from('quotes').insert([{ ...form, total }]).select().single();
+    const { data: quote, error } = await supabase
+      .from('quotes')
+      .insert([{ ...form, total }])
+      .select()
+      .single();
     if (error) { alert('Error: ' + error.message); return; }
     const quoteItems = items.map(item => ({ ...item, quote_id: quote.id }));
     await supabase.from('quote_items').insert(quoteItems);
@@ -65,6 +73,41 @@ export default function QuotesPage() {
     setForm({ customer_id: '', due_date: '', notes: '', status: 'New Quote' });
     setItems([{ description: '', category: '', quantity: 1, unit_price: 0, total: 0 }]);
     fetchQuotes();
+  }
+
+  async function sendQuote(quote, index) {
+    if (!quote.customers?.email) {
+      alert('This customer has no email address. Please add one in Customers first.');
+      return;
+    }
+    setSending(quote.id);
+
+    const { data: quoteItems } = await supabase
+      .from('quote_items')
+      .select('*')
+      .eq('quote_id', quote.id);
+
+    const quoteNumber = `Q-${String(index + 1).padStart(4, '0')}`;
+
+    const res = await fetch('/api/send-quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quote: { ...quote, quote_number: quoteNumber },
+        customer: quote.customers,
+        items: quoteItems || [],
+      }),
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      await supabase.from('quotes').update({ status: 'Sent' }).eq('id', quote.id);
+      fetchQuotes();
+      alert(`Quote sent to ${quote.customers.email}!`);
+    } else {
+      alert('Error sending: ' + JSON.stringify(result.error));
+    }
+    setSending(null);
   }
 
   const statusColors = {
@@ -87,6 +130,7 @@ export default function QuotesPage() {
             <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Quotes</h1>
             <button onClick={() => setShowModal(true)} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ New Quote</button>
           </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
             {[
               { label: 'Total Quotes', value: quotes.length },
@@ -100,18 +144,19 @@ export default function QuotesPage() {
               </div>
             ))}
           </div>
+
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  {['Quote #', 'Customer', 'Due Date', 'Total', 'Status'].map(h => (
+                  {['Quote #', 'Customer', 'Due Date', 'Total', 'Status', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>Loading...</td></tr>}
-                {!loading && quotes.length === 0 && <tr><td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No quotes yet. Create your first one!</td></tr>}
+                {loading && <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>Loading...</td></tr>}
+                {!loading && quotes.length === 0 && <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No quotes yet. Create your first one!</td></tr>}
                 {quotes.map((q, i) => {
                   const sc = statusColors[q.status] || statusColors['New Quote'];
                   return (
@@ -119,12 +164,21 @@ export default function QuotesPage() {
                       <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>Q-{String(i + 1).padStart(4, '0')}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600 }}>{q.customers?.name || 'N/A'}</div>
-                        <div style={{ fontSize: '11px', color: '#6b7280' }}>{q.customers?.company}</div>
+                        <div style={{ fontSize: '11px', color: '#6b7280' }}>{q.customers?.email}</div>
                       </td>
                       <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{q.due_date || '—'}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>${(q.total || 0).toFixed(2)}</td>
                       <td style={{ padding: '10px 16px' }}>
                         <span style={{ background: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>{q.status}</span>
+                      </td>
+                      <td style={{ padding: '10px 16px' }}>
+                        <button
+                          onClick={() => sendQuote(q, i)}
+                          disabled={sending === q.id}
+                          style={{ padding: '5px 12px', background: sending === q.id ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: sending === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
+                        >
+                          {sending === q.id ? 'Sending...' : '✉ Send'}
+                        </button>
                       </td>
                     </tr>
                   );
