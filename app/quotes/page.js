@@ -161,7 +161,7 @@ export default function QuotesPage() {
                   const sc = statusColors[q.status] || statusColors['New Quote'];
                   return (
                     <tr key={q.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>Q-{String(i + 1).padStart(4, '0')}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => router.push('/quotes/' + q.id)}>Q-{String(i + 1).padStart(4, '0')}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600 }}>{q.customers?.name || 'N/A'}</div>
                         <div style={{ fontSize: '11px', color: '#6b7280' }}>{q.customers?.email}</div>
