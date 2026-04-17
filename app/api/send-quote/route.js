@@ -19,7 +19,7 @@ export async function POST(request) {
     const shopWebsite = settings?.shop_website || 'portal.rockethq.io';
     const quoteTerms = settings?.quote_terms || '';
     const emailSignature = settings?.email_signature || '';
-    const portalUrl = `https://portal.rockethq.io/portal/${customerData?.portal_token}`;
+    const portalUrl = 'https://portal.rockethq.io/portal/' + (customerData?.portal_token || '');
 
     const itemsHTML = items.map(item => `
       <tr>
@@ -69,7 +69,7 @@ export async function POST(request) {
     const shopWebsite = settings?.shop_website || 'portal.rockethq.io';
     const quoteTerms = settings?.quote_terms || '';
     const emailSignature = settings?.email_signature || '';
-    const portalUrl = `https://portal.rockethq.io/portal/${customerData?.portal_token}`;
+    const portalUrl = 'https://portal.rockethq.io/portal/' + (customerData?.portal_token || '');
 
     const itemsHTML = items.map(item => `
       <tr>
