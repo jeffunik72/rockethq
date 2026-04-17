@@ -10,6 +10,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', city: '', state: '' });
   const router = useRouter();
 
@@ -36,6 +37,13 @@ export default function CustomersPage() {
     }
   }
 
+  function copyPortalLink(customer) {
+    const link = `${window.location.origin}/portal/${customer.portal_token}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(customer.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
   if (checking) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#6b7280' }}>Loading...</div>;
 
   return (
@@ -45,14 +53,18 @@ export default function CustomersPage() {
         <Sidebar />
         <main style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8f9fb' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Customers</h1>
+            <div>
+              <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Customers</h1>
+              <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '2px' }}>{customers.length} total customers</div>
+            </div>
             <button onClick={() => setShowModal(true)} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ New Customer</button>
           </div>
+
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  {['Name', 'Company', 'Email', 'Phone', 'City', 'State'].map(h => (
+                  {['Name', 'Company', 'Email', 'Phone', 'City', 'Portal Link'].map(h => (
                     <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>{h}</th>
                   ))}
                 </tr>
@@ -63,11 +75,18 @@ export default function CustomersPage() {
                 {customers.map(c => (
                   <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                     <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>{c.name}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.company}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#2563eb' }}>{c.email}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.phone}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.city}</td>
-                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.state}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.company || '—'}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#2563eb' }}>{c.email || '—'}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.phone || '—'}</td>
+                    <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.city || '—'}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <button
+                        onClick={() => copyPortalLink(c)}
+                        style={{ padding: '5px 12px', background: copiedId === c.id ? '#dcfce7' : 'white', color: copiedId === c.id ? '#15803d' : '#374151', border: '1px solid', borderColor: copiedId === c.id ? '#86efac' : '#e5e7eb', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .2s' }}
+                      >
+                        {copiedId === c.id ? '✓ Copied!' : '🔗 Copy Link'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
