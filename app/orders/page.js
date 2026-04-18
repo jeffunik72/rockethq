@@ -22,6 +22,22 @@ export default function OrdersPage() {
     });
   }, []);
 
+  
+  async function sendInvoice(order) {
+    const { data: cust } = await supabase.from('customers').select('*').eq('id', order.customer_id).single();
+    if (!cust || !cust.email) { alert('No email for customer'); return; }
+    const { data: invoice } = await supabase.from('invoices').select('*').eq('customer_id', order.customer_id).order('created_at', { ascending: false }).limit(1).single();
+    if (!invoice) { alert('No invoice found'); return; }
+    const res = await fetch('/api/send-invoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoice, customer: cust, order }),
+    });
+    const result = await res.json();
+    if (result.success) { alert('Invoice sent to ' + cust.email); }
+    else { alert('Error sending invoice'); }
+  }
+
   async function fetchOrders() {
     setLoading(true);
     const { data } = await supabase
@@ -175,12 +191,10 @@ export default function OrdersPage() {
                         </select>
                       </td>
                       <td style={{ padding: '10px 16px' }}>
-                        <button
-                          onClick={() => router.push('/orders/' + o.id)}
-                          style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
-                          View →
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button onClick={() => router.push('/orders/' + o.id)} style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>View</button>
+                          <button onClick={() => sendInvoice(o)} style={{ padding: '4px 10px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Send Invoice</button>
+                        </div>
                       </td>
                     </tr>
                   );
