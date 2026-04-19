@@ -140,14 +140,19 @@ export default function JobDetailPage({ params }) {
     setVehicleSearch('');
   }
 
-  function applyLargeFormatKit(idx, kit, sqft) {
+  function applyLargeFormatKit(idx, kit, sqft, width, height, qty) {
     if (!kit || !sqft) return;
     const price = getKitSellPrice(kit, sqft);
+    const unitPrice = parseFloat((price / (qty || 1)).toFixed(2));
     const updated = [...items];
     updated[idx] = {
       ...updated[idx],
-      unit_price: parseFloat(price.toFixed(2)),
-      quantity: 1,
+      width: width,
+      height: height,
+      quantity: qty || 1,
+      material: kit.name,
+      description: updated[idx].description || (width + 'ft x ' + height + 'ft ' + kit.name),
+      unit_price: unitPrice,
       total: parseFloat(price.toFixed(2)),
     };
     setItems(updated);
@@ -567,12 +572,15 @@ export default function JobDetailPage({ params }) {
                                   </div>
                                   <button
                                     onClick={() => {
-                                      const sqft = (parseFloat(item.width) || 0) * (parseFloat(item.height) || 0);
+                                      const w = parseFloat(item.width) || 0;
+                                      const h = parseFloat(item.height) || 0;
+                                      const qty = parseInt(item.quantity) || 1;
+                                      const sqft = w * h * qty;
                                       const kitId = selectedKits[idx];
                                       const kit = kits.find(k => k.id === kitId);
                                       if (!sqft) { alert('Enter width and height first'); return; }
                                       if (!kit) { alert('Select a kit first'); return; }
-                                      applyLargeFormatKit(idx, kit, sqft * (item.quantity || 1));
+                                      applyLargeFormatKit(idx, kit, sqft, w, h, qty);
                                     }}
                                     disabled={!item.width || !item.height || !selectedKits[idx]}
                                     style={{ padding: '7px 14px', background: (!item.width || !item.height || !selectedKits[idx]) ? '#e5e7eb' : '#16a34a', color: (!item.width || !item.height || !selectedKits[idx]) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.width || !item.height || !selectedKits[idx]) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
