@@ -10,13 +10,30 @@ const VIEWS = ['month', 'week', 'day'];
 
 const STATUS_COLORS = {
   'New Quote': '#3b82f6',
-  'Sent': '#f59e0b',
+  'Quote Sent': '#f59e0b',
   'Accepted': '#10b981',
-  'New': '#8b5cf6',
-  'In Production': '#f97316',
-  'Ready': '#06b6d4',
-  'Delivered': '#6b7280',
   'Awaiting Payment': '#ef4444',
+  'In Production': '#f97316',
+  'Ready for Pickup': '#06b6d4',
+  'Delivered': '#6b7280',
+  'Cancelled': '#9ca3af',
+  'New': '#8b5cf6',
+  'Sent': '#f59e0b',
+  'Ready': '#06b6d4',
+};
+
+const STATUS_BG_COLORS = {
+  'New Quote': '#dbeafe',
+  'Quote Sent': '#fef3c7',
+  'Accepted': '#d1fae5',
+  'Awaiting Payment': '#fee2e2',
+  'In Production': '#ffedd5',
+  'Ready for Pickup': '#cffafe',
+  'Delivered': '#f3f4f6',
+  'Cancelled': '#f3f4f6',
+  'New': '#ede9fe',
+  'Sent': '#fef3c7',
+  'Ready': '#cffafe',
 };
 
 export default function CalendarPage() {
@@ -296,7 +313,7 @@ export default function CalendarPage() {
                           <div
                             key={event.id}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                            style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '3px solid ' + event.color, borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer', lineHeight: 1.4, marginBottom: '1px' }}
+                            style={{ background: STATUS_BG_COLORS[event.status] || '#f8f9fb', border: '1px solid ' + event.color + '40', borderLeft: '3px solid ' + event.color, borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer', lineHeight: 1.4, marginBottom: '1px' }}
                             title={event.title}
                           >
                             {event.number && <div style={{ fontWeight: 700, color: '#111827', fontSize: '11px' }}>{event.number}</div>}
@@ -345,7 +362,7 @@ export default function CalendarPage() {
                           <div
                             key={event.id}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                            style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '4px solid ' + event.color, borderRadius: '6px', padding: '6px 8px', fontSize: '12px', cursor: 'pointer', lineHeight: 1.5, marginBottom: '4px' }}
+                            style={{ background: STATUS_BG_COLORS[event.status] || '#f8f9fb', border: '1px solid ' + event.color + '40', borderLeft: '4px solid ' + event.color, borderRadius: '6px', padding: '6px 8px', fontSize: '12px', cursor: 'pointer', lineHeight: 1.5, marginBottom: '4px' }}
                           >
                             {event.number && <div style={{ fontWeight: 700, color: '#111827', fontSize: '12px' }}>{event.number}</div>}
                             <div style={{ fontWeight: 600, color: '#374151' }}>{event.customer}</div>

@@ -22,6 +22,7 @@ const sourceOptions = ['Website', 'Referral', 'Instagram', 'Facebook', 'Walk-in'
 export default function PipelinePage() {
   const [leads, setLeads] = useState([]);
   const [checking, setChecking] = useState(true);
+  const [staff, setStaff] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
   const [showLostModal, setShowLostModal] = useState(false);
@@ -44,6 +45,11 @@ export default function PipelinePage() {
       else { setChecking(false); fetchLeads(); fetchCustomers(); }
     });
   }, []);
+
+  async function fetchStaff() {
+    const { data } = await supabase.from('staff').select('*').eq('active', true);
+    if (data) setStaff(data);
+  }
 
   async function fetchLeads() {
     const { data } = await supabase
@@ -225,9 +231,14 @@ export default function PipelinePage() {
                               <span style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Final: ${lead.final_value.toFixed(2)}</span>
                             )}
                           </div>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                           {lead.source && (
                             <span style={{ fontSize: '10px', background: '#f3f4f6', color: '#6b7280', padding: '2px 7px', borderRadius: '100px', fontWeight: 600 }}>{lead.source}</span>
                           )}
+                          {lead.assigned_to && (
+                            <span style={{ fontSize: '10px', background: '#eff6ff', color: '#2563eb', padding: '2px 7px', borderRadius: '100px', fontWeight: 600 }}>{lead.assigned_to}</span>
+                          )}
+                          </div>
                         </div>
                         {lead.lost_reason && (
                           <div style={{ marginTop: '8px', fontSize: '11px', color: '#b91c1c', background: '#fee2e2', borderRadius: '4px', padding: '4px 8px' }}>
@@ -300,7 +311,10 @@ export default function PipelinePage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Assigned To</label>
-                  <input value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })} placeholder="Jeff" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                  <select value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }}>
+                        <option value="">Unassigned</option>
+                        {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      </select>
                 </div>
               </div>
               <div>
