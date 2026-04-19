@@ -290,19 +290,27 @@ export default function CalendarPage() {
           </div>
 
           {/* Legend */}
-          <div style={{ padding: '8px 24px', background: 'white', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: '16px', flexShrink: 0 }}>
-            {[
-              { color: '#3b82f6', label: 'Quote Due' },
-              { color: '#8b5cf6', label: 'Order Due' },
-              { color: '#f97316', label: 'Production Job' },
-              { color: '#2563eb', label: 'Google Calendar' },
-              { color: '#f59e0b', label: 'Task Due' },
-            ].map(item => (
-              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: item.color, flexShrink: 0 }} />
-                {item.label}
-              </div>
-            ))}
+          <div style={{ padding: '8px 24px', background: 'white', borderBottom: '1px solid #e5e7eb', display: 'flex', gap: '16px', flexShrink: 0, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
+              <div style={{ width: '24px', height: '12px', borderRadius: '3px', background: '#3b82f6' }} />
+              Quote
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
+              <div style={{ width: '24px', height: '12px', borderRadius: '3px', background: '#f97316' }} />
+              Active Job
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
+              <div style={{ width: '24px', height: '12px', borderRadius: '3px', background: '#10b981' }} />
+              Accepted
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
+              <div style={{ width: '24px', height: '12px', borderRadius: '3px', border: '2px dashed #f59e0b', background: 'white' }} />
+              Task
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#2563eb' }} />
+              Google Event
+            </div>
           </div>
 
           {/* MONTH VIEW */}
@@ -332,13 +340,44 @@ export default function CalendarPage() {
                           <div
                             key={event.id}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                            style={{ background: STATUS_BG_COLORS[event.status] || '#f8f9fb', border: '1px solid ' + event.color + '40', borderLeft: '3px solid ' + event.color, borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer', lineHeight: 1.4, marginBottom: '1px' }}
                             title={event.title}
+                            style={{
+                              marginBottom: '2px',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              ...(event.type === 'task' ? {
+                                background: 'white',
+                                border: '1px dashed ' + event.color,
+                                padding: '2px 5px',
+                              } : event.type === 'google' ? {
+                                background: 'white',
+                                border: '1px solid #e5e7eb',
+                                padding: '2px 5px',
+                              } : {
+                                background: event.color,
+                                padding: '2px 5px',
+                              })
+                            }}
                           >
-                            {event.number && <div style={{ fontWeight: 700, color: '#111827', fontSize: '11px' }}>{event.number}</div>}
-                            <div style={{ fontWeight: 600, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</div>
-                            {event.time && <div style={{ color: '#9ca3af', fontSize: '10px' }}>{event.time}</div>}
-                            <div style={{ display: 'inline-block', background: event.color, color: 'white', borderRadius: '3px', padding: '1px 4px', fontSize: '9px', fontWeight: 700, marginTop: '2px' }}>{event.status || event.type}</div>
+                            {event.type === 'task' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <span style={{ fontSize: '9px', color: event.color }}>☐</span>
+                                <span style={{ fontSize: '10px', fontWeight: 600, color: event.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</span>
+                              </div>
+                            )}
+                            {event.type === 'google' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: event.color, flexShrink: 0, display: 'inline-block' }} />
+                                <span style={{ fontSize: '10px', fontStyle: 'italic', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</span>
+                              </div>
+                            )}
+                            {(event.type === 'quote' || event.type === 'order' || event.type === 'job') && (
+                              <div>
+                                <div style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>{event.number}</div>
+                                <div style={{ fontSize: '10px', fontWeight: 600, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</div>
+                              </div>
+                            )}
                           </div>
                         ))}
                         {events.length > 3 && (
@@ -381,12 +420,51 @@ export default function CalendarPage() {
                           <div
                             key={event.id}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                            style={{ background: STATUS_BG_COLORS[event.status] || '#f8f9fb', border: '1px solid ' + event.color + '40', borderLeft: '4px solid ' + event.color, borderRadius: '6px', padding: '6px 8px', fontSize: '12px', cursor: 'pointer', lineHeight: 1.5, marginBottom: '4px' }}
+                            style={{
+                              marginBottom: '4px',
+                              cursor: 'pointer',
+                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              fontSize: '12px',
+                              lineHeight: 1.5,
+                              ...(event.type === 'task' ? {
+                                background: 'white',
+                                border: '2px dashed ' + event.color,
+                              } : event.type === 'google' ? {
+                                background: 'white',
+                                border: '1px solid #e5e7eb',
+                                borderLeft: '3px solid ' + event.color,
+                              } : {
+                                background: event.color,
+                                border: 'none',
+                              })
+                            }}
                           >
-                            {event.number && <div style={{ fontWeight: 700, color: '#111827', fontSize: '12px' }}>{event.number}</div>}
-                            <div style={{ fontWeight: 600, color: '#374151' }}>{event.customer}</div>
-                            {event.time && <div style={{ color: '#9ca3af', fontSize: '10px' }}>{event.time}</div>}
-                            <div style={{ display: 'inline-block', background: event.color, color: 'white', borderRadius: '3px', padding: '1px 5px', fontSize: '10px', fontWeight: 700, marginTop: '3px' }}>{event.status || event.type}</div>
+                            {event.type === 'task' && (
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '1px' }}>
+                                  <span style={{ fontSize: '11px', color: event.color }}>☐</span>
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: event.color }}>Task</span>
+                                </div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151' }}>{event.customer}</div>
+                              </div>
+                            )}
+                            {event.type === 'google' && (
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '1px' }}>
+                                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: event.color, display: 'inline-block', flexShrink: 0 }} />
+                                  <span style={{ fontSize: '10px', color: '#9ca3af' }}>{event.time || 'All day'}</span>
+                                </div>
+                                <div style={{ fontSize: '11px', fontStyle: 'italic', color: '#374151' }}>{event.customer}</div>
+                              </div>
+                            )}
+                            {(event.type === 'quote' || event.type === 'order' || event.type === 'job') && (
+                              <div>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: '1px' }}>{event.number}</div>
+                                <div style={{ fontSize: '11px', fontWeight: 700, color: 'white' }}>{event.customer}</div>
+                                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>{event.status}</div>
+                              </div>
+                            )}
                           </div>
                         ))}
                         {events.length === 0 && (
