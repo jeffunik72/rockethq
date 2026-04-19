@@ -75,6 +75,16 @@ export default function QuotesPage() {
     fetchQuotes();
   }
 
+  async function createNewQuote() {
+    const { data: quote, error } = await supabase
+      .from('quotes')
+      .insert([{ status: 'New Quote', total: 0 }])
+      .select()
+      .single();
+    if (error) { alert('Error: ' + error.message); return; }
+    router.push('/quotes/' + quote.id);
+  }
+
   async function sendQuote(quote, index) {
     if (!quote.customers?.email) {
       alert('This customer has no email address. Please add one in Customers first.');
@@ -128,7 +138,7 @@ export default function QuotesPage() {
         <main style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8f9fb' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <h1 style={{ fontSize: '20px', fontWeight: 700 }}>Quotes</h1>
-            <button onClick={() => setShowModal(true)} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ New Quote</button>
+            <button onClick={createNewQuote} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>+ New Quote</button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
