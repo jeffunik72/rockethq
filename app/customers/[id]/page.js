@@ -22,6 +22,14 @@ export default function CustomerDetailPage({ params }) {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [contacts, setContacts] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', title: '', is_primary: false });
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', due_date: '', priority: 'Normal', assigned_to: '' });
+  const [savingContact, setSavingContact] = useState(false);
+  const [savingTask, setSavingTask] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -32,11 +40,13 @@ export default function CustomerDetailPage({ params }) {
   }, [id]);
 
   async function fetchData() {
-    const [{ data: cust }, { data: jobsData }, { data: staffData }, { data: settingsData }] = await Promise.all([
+    const [{ data: cust }, { data: jobsData }, { data: staffData }, { data: settingsData }, { data: contactsData }, { data: tasksData }] = await Promise.all([
       supabase.from('customers').select('*').eq('id', id).single(),
       supabase.from('jobs').select('*').eq('customer_id', id).order('created_at', { ascending: false }),
       supabase.from('staff').select('*').eq('active', true),
       supabase.from('settings').select('*').single(),
+      supabase.from('customer_contacts').select('*').eq('customer_id', id).order('is_primary', { ascending: false }),
+      supabase.from('tasks').select('*').eq('customer_id', id).order('created_at', { ascending: false }),
     ]);
     if (!cust) { router.push('/customers'); return; }
     setCustomer(cust);
@@ -44,7 +54,46 @@ export default function CustomerDetailPage({ params }) {
     setJobs(jobsData || []);
     setStaff(staffData || []);
     setSettings(settingsData);
+    setContacts(contactsData || []);
+    setTasks(tasksData || []);
     setLoading(false);
+  }
+
+  async function saveContact() {
+    if (!contactForm.name) { alert('Name is required'); return; }
+    setSavingContact(true);
+    const { data, error } = await supabase.from('customer_contacts').insert([{ ...contactForm, customer_id: id }]).select().single();
+    if (error) { alert('Error: ' + error.message); }
+    else { setContacts([...contacts, data]); setShowContactModal(false); setContactForm({ name: '', email: '', phone: '', title: '', is_primary: false }); }
+    setSavingContact(false);
+  }
+
+  async function deleteContact(contactId) {
+    if (!confirm('Delete this contact?')) return;
+    await supabase.from('customer_contacts').delete().eq('id', contactId);
+    setContacts(contacts.filter(c => c.id !== contactId));
+  }
+
+  async function saveTask() {
+    if (!taskForm.title) { alert('Title is required'); return; }
+    setSavingTask(true);
+    const { data, error } = await supabase.from('tasks').insert([{ ...taskForm, customer_id: id }]).select().single();
+    if (error) { alert('Error: ' + error.message); }
+    else { setTasks([...tasks, data]); setShowTaskModal(false); setTaskForm({ title: '', description: '', due_date: '', priority: 'Normal', assigned_to: '' }); }
+    setSavingTask(false);
+  }
+
+  async function toggleTask(task) {
+    const newStatus = task.status === 'Completed' ? 'Open' : 'Completed';
+    const completed_at = newStatus === 'Completed' ? new Date().toISOString() : null;
+    await supabase.from('tasks').update({ status: newStatus, completed_at }).eq('id', task.id);
+    setTasks(tasks.map(t => t.id === task.id ? { ...t, status: newStatus, completed_at } : t));
+  }
+
+  async function deleteTask(taskId) {
+    if (!confirm('Delete this task?')) return;
+    await supabase.from('tasks').delete().eq('id', taskId);
+    setTasks(tasks.filter(t => t.id !== taskId));
   }
 
   async function saveCustomer() {
@@ -149,9 +198,12 @@ export default function CustomerDetailPage({ params }) {
 
           {/* Tabs */}
           <div style={{ background: 'white', borderBottom: '1px solid #e5e7eb', padding: '0 24px', display: 'flex', gap: '0' }}>
-            {['overview', 'jobs', 'emails', 'notes'].map(tab => (
+            {['overview', 'contacts', 'jobs', 'tasks', 'emails', 'notes'].map(tab => (
               <div key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '12px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: activeTab === tab ? '#2563eb' : '#6b7280', borderBottom: activeTab === tab ? '2px solid #2563eb' : '2px solid transparent', textTransform: 'capitalize' }}>
-                {tab === 'jobs' ? 'Jobs (' + jobs.length + ')' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'jobs' ? 'Jobs (' + jobs.length + ')' :
+                 tab === 'contacts' ? 'Contacts (' + contacts.length + ')' :
+                 tab === 'tasks' ? 'Tasks (' + tasks.length + ')' :
+                 tab.charAt(0).toUpperCase() + tab.slice(1)}
               </div>
             ))}
           </div>
@@ -272,6 +324,73 @@ export default function CustomerDetailPage({ params }) {
                         })}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* CONTACTS TAB */}
+            {activeTab === 'contacts' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>Contacts</div>
+                  <button onClick={() => setShowContactModal(true)} style={{ padding: '7px 14px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Contact</button>
+                </div>
+                {contacts.length === 0 ? (
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '40px', textAlign: 'center', color: '#9ca3af' }}>No contacts yet</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {contacts.map(contact => (
+                      <div key={contact.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: getAvatarColor(contact.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                          {getInitials(contact.name)}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600 }}>{contact.name}</div>
+                            {contact.is_primary && <span style={{ background: '#dbeafe', color: '#1d4ed8', fontSize: '10px', padding: '1px 6px', borderRadius: '100px', fontWeight: 600 }}>Primary</span>}
+                          </div>
+                          {contact.title && <div style={{ fontSize: '12px', color: '#6b7280' }}>{contact.title}</div>}
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+                            {contact.email && <span>✉ {contact.email}</span>}
+                            {contact.phone && <span>📞 {contact.phone}</span>}
+                          </div>
+                        </div>
+                        <button onClick={() => deleteContact(contact.id)} style={{ fontSize: '12px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TASKS TAB */}
+            {activeTab === 'tasks' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>Tasks</div>
+                  <button onClick={() => setShowTaskModal(true)} style={{ padding: '7px 14px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Task</button>
+                </div>
+                {tasks.length === 0 ? (
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '40px', textAlign: 'center', color: '#9ca3af' }}>No tasks yet</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {tasks.map(task => (
+                      <div key={task.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div onClick={() => toggleTask(task)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid', borderColor: task.status === 'Completed' ? '#16a34a' : '#d1d5db', background: task.status === 'Completed' ? '#16a34a' : 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {task.status === 'Completed' && <span style={{ color: 'white', fontSize: '11px', fontWeight: 700 }}>✓</span>}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: task.status === 'Completed' ? '#9ca3af' : '#111827', textDecoration: task.status === 'Completed' ? 'line-through' : 'none' }}>{task.title}</div>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                            {task.due_date && <span>Due: {task.due_date}</span>}
+                            {task.assigned_to && <span>Assigned: {task.assigned_to}</span>}
+                            <span style={{ background: task.priority === 'High' ? '#fee2e2' : task.priority === 'Low' ? '#f3f4f6' : '#fef3c7', color: task.priority === 'High' ? '#dc2626' : task.priority === 'Low' ? '#6b7280' : '#b45309', padding: '1px 6px', borderRadius: '100px', fontSize: '10px', fontWeight: 600 }}>{task.priority}</span>
+                          </div>
+                        </div>
+                        <button onClick={() => deleteTask(task.id)} style={{ fontSize: '12px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Delete</button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -476,6 +595,93 @@ export default function CustomerDetailPage({ params }) {
               <button onClick={saveCustomer} disabled={saving} style={{ padding: '8px 16px', background: saving ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD CONTACT MODAL */}
+      {showContactModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '12px', width: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Add Contact</h2>
+              <span onClick={() => setShowContactModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#6b7280' }}>x</span>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Full Name *</label>
+                  <input value={contactForm.name} onChange={e => setContactForm({...contactForm, name: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Job Title</label>
+                  <input value={contactForm.title} onChange={e => setContactForm({...contactForm, title: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Email</label>
+                  <input type="email" value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Phone</label>
+                  <input value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input type="checkbox" checked={contactForm.is_primary} onChange={e => setContactForm({...contactForm, is_primary: e.target.checked})} />
+                <label style={{ fontSize: '13px', color: '#374151' }}>Set as primary contact</label>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '8px' }}>
+                <button onClick={() => setShowContactModal(false)} style={{ padding: '8px 16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={saveContact} disabled={savingContact} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Add Contact</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD TASK MODAL */}
+      {showTaskModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '12px', width: '440px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Add Task</h2>
+              <span onClick={() => setShowTaskModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#6b7280' }}>x</span>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Task Title *</label>
+                <input value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} placeholder="e.g. Follow up on quote" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Due Date</label>
+                  <input type="date" value={taskForm.due_date} onChange={e => setTaskForm({...taskForm, due_date: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Priority</label>
+                  <select value={taskForm.priority} onChange={e => setTaskForm({...taskForm, priority: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}>
+                    {['Low', 'Normal', 'High'].map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Assign To</label>
+                <select value={taskForm.assigned_to} onChange={e => setTaskForm({...taskForm, assigned_to: e.target.value})} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}>
+                  <option value="">Unassigned</option>
+                  {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Description</label>
+                <textarea value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})} rows={3} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '8px' }}>
+                <button onClick={() => setShowTaskModal(false)} style={{ padding: '8px 16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={saveTask} disabled={savingTask} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Add Task</button>
+              </div>
             </div>
           </div>
         </div>
