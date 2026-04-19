@@ -34,6 +34,9 @@ const STATUS_BG_COLORS = {
   'New': '#ede9fe',
   'Sent': '#fef3c7',
   'Ready': '#cffafe',
+  'High Priority': '#fee2e2',
+  'Normal Priority': '#fef3c7',
+  'Low Priority': '#f3f4f6',
 };
 
 export default function CalendarPage() {
@@ -44,6 +47,7 @@ export default function CalendarPage() {
   const [orders, setOrders] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [googleEvents, setGoogleEvents] = useState([]);
+  const [calTasks, setCalTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showNewEvent, setShowNewEvent] = useState(false);
@@ -64,14 +68,16 @@ export default function CalendarPage() {
   }, [googleSession, currentDate]);
 
   async function fetchData() {
-    const [{ data: quotesData }, { data: ordersData }, { data: jobsData }] = await Promise.all([
+    const [{ data: quotesData }, { data: ordersData }, { data: jobsData }, { data: tasksData }] = await Promise.all([
       supabase.from('jobs').select('*, customers(name)').not('due_date', 'is', null).in('status', ['New Quote', 'Quote Sent']),
       supabase.from('jobs').select('*, customers(name)').not('due_date', 'is', null).not('status', 'in', '("New Quote","Quote Sent","Cancelled","Delivered")'),
       supabase.from('production_jobs').select('*, customers(name)').not('due_date', 'is', null),
+      supabase.from('tasks').select('*, customers(name)').not('due_date', 'is', null).neq('status', 'Completed'),
     ]);
     setQuotes(quotesData || []);
     setOrders(ordersData || []);
     setJobs(jobsData || []);
+    setCalTasks(tasksData || []);
     setLoading(false);
   }
 
@@ -147,6 +153,18 @@ export default function CalendarPage() {
       color: '#f97316',
       status: j.stage,
       link: '/production',
+      time: null,
+    }));
+
+    calTasks.filter(t => t.due_date === dateStr).forEach(t => events.push({
+      id: 't-' + t.id,
+      type: 'task',
+      title: t.title,
+      number: null,
+      customer: t.title,
+      color: t.priority === 'High' ? '#dc2626' : t.priority === 'Low' ? '#6b7280' : '#f59e0b',
+      status: t.priority + ' Priority',
+      link: '/tasks',
       time: null,
     }));
 
@@ -278,6 +296,7 @@ export default function CalendarPage() {
               { color: '#8b5cf6', label: 'Order Due' },
               { color: '#f97316', label: 'Production Job' },
               { color: '#2563eb', label: 'Google Calendar' },
+              { color: '#f59e0b', label: 'Task Due' },
             ].map(item => (
               <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#6b7280' }}>
                 <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: item.color, flexShrink: 0 }} />
