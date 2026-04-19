@@ -439,10 +439,60 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Per-method stages */}
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>Per-Method Stages</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>Customize stages for each imprint method. When a method is selected on the production board, these stages will be used instead of the default stages.</div>
+                    {(settings.imprint_methods || []).map(method => {
+                      const methodStageList = ((settings.production_method_stages || {})[method] || []);
+                      return (
+                        <div key={method} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #f3f4f6' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '8px' }}>{method}</div>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                            {methodStageList.map((stage, idx) => (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f8f9fb', border: '1px solid #e5e7eb', borderRadius: '100px', padding: '3px 10px', fontSize: '12px' }}>
+                                <span>{stage}</span>
+                                <span onClick={async () => {
+                                  const newList = methodStageList.filter((_, i) => i !== idx);
+                                  const newMethodStages = { ...(settings.production_method_stages || {}), [method]: newList };
+                                  await supabase.from('settings').update({ production_method_stages: newMethodStages }).eq('id', settings.id);
+                                  setSettings({ ...settings, production_method_stages: newMethodStages });
+                                }} style={{ cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '14px', lineHeight: 1 }}>×</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <input
+                              id={'stage-input-' + method}
+                              placeholder="Add stage..."
+                              style={{ flex: 1, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none' }}
+                            />
+                            <button onClick={async () => {
+                              const input = document.getElementById('stage-input-' + method);
+                              const val = input.value.trim();
+                              if (!val) return;
+                              const newList = [...methodStageList, val];
+                              const newMethodStages = { ...(settings.production_method_stages || {}), [method]: newList };
+                              await supabase.from('settings').update({ production_method_stages: newMethodStages }).eq('id', settings.id);
+                              setSettings({ ...settings, production_method_stages: newMethodStages });
+                              input.value = '';
+                            }} style={{ padding: '6px 12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                              + Add
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(settings.imprint_methods || []).length === 0 && (
+                      <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No imprint methods configured. Add them in the Imprint Methods section first.</div>
+                    )}
+                  </div>
+
                   <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '14px 16px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>Tips</div>
                     <div style={{ fontSize: '12px', color: '#b45309', lineHeight: 1.6 }}>
-                      • Stages appear left to right on the production board<br/>
+                      • Default stages show when no method filter is selected<br/>
+                      • Per-method stages show when filtering by that method<br/>
                       • Click the color swatch to change a stage color<br/>
                       • Jobs enter production at the first stage automatically
                     </div>

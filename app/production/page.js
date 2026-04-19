@@ -16,6 +16,7 @@ export default function ProductionPage() {
   const [filterMethod, setFilterMethod] = useState('all');
   const [imprintMethods, setImprintMethods] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [methodStages, setMethodStages] = useState({});
   const router = useRouter();
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function ProductionPage() {
       setStages(settingsData.production_stages || []);
       setStageColors(settingsData.production_stage_colors || {});
       setImprintMethods(settingsData.imprint_methods || []);
+      setMethodStages(settingsData.production_method_stages || {});
     }
     setJobs(jobsData || []);
     setLoading(false);
@@ -88,6 +90,11 @@ export default function ProductionPage() {
     (j.job_items || []).some(i => i.imprint_method === filterMethod)
   );
 
+  // Use method-specific stages if a method is selected and has stages defined
+  const activeStages = filterMethod !== 'all' && methodStages[filterMethod]
+    ? methodStages[filterMethod]
+    : stages;
+
   if (checking || loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#6b7280' }}>
       <div style={{ textAlign: 'center' }}>
@@ -132,9 +139,9 @@ export default function ProductionPage() {
           {/* Board */}
           <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', padding: '16px' }}>
             <div style={{ display: 'flex', gap: '12px', height: '100%', minWidth: 'max-content' }}>
-              {stages.map(stage => {
+              {activeStages.map(stage => {
                 const color = stageColors[stage] || '#6b7280';
-                const stageJobs = filtered.filter(j => (j.production_stage || stages[0]) === stage);
+                const stageJobs = filtered.filter(j => (j.production_stage || activeStages[0]) === stage);
                 return (
                   <div
                     key={stage}
@@ -256,7 +263,7 @@ export default function ProductionPage() {
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '8px', textTransform: 'uppercase' }}>Move to Stage</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {stages.map(stage => {
+                  {activeStages.map(stage => {
                     const color = stageColors[stage] || '#6b7280';
                     const isActive = (selectedJob.production_stage || stages[0]) === stage;
                     return (
