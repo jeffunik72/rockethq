@@ -59,6 +59,7 @@ export default function CustomerPortal({ params }) {
         approved_at: new Date().toISOString(),
       }).eq('id', quote.id);
 
+      const { data: invNum } = await supabase.rpc('get_next_invoice_number');
       const { data: invoice } = await supabase.from('invoices').insert([{
         quote_id: quote.id,
         customer_id: customer.id,
@@ -66,8 +67,10 @@ export default function CustomerPortal({ params }) {
         amount_paid: 0,
         amount_due: quote.total,
         status: 'Unpaid',
+        invoice_number: invNum,
       }]).select().single();
 
+      const { data: ordNum } = await supabase.rpc('get_next_order_number');
       await supabase.from('orders').insert([{
         customer_id: customer.id,
         quote_id: quote.id,
@@ -75,6 +78,7 @@ export default function CustomerPortal({ params }) {
         status: 'Awaiting Payment',
         payment_status: 'Unpaid',
         notes: quote.notes || '',
+        order_number: ordNum,
       }]);
 
       // Update lead final value
