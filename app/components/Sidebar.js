@@ -10,6 +10,7 @@ const navItems = [
   { id: 'calendar', label: 'Calendar', icon: '📅' },
   { id: 'tasks', label: 'Tasks', icon: '✓' },
   { id: 'production', label: 'Production', icon: '⏱' },
+  { id: 'pricing', label: 'Pricing', icon: '💲' },
   { id: 'expenses', label: 'Expenses', icon: '💲' },
   { id: 'products', label: 'Products', icon: '📦' },
 ];
