@@ -8,6 +8,7 @@ const navItems = [
   { id: 'orders', label: 'Orders', icon: '📋' },
   { id: 'customers', label: 'Customers', icon: '👤' },
   { id: 'emails', label: 'Emails', icon: '📧' },
+  { id: 'calendar', label: 'Calendar', icon: '📅' },
   { id: 'production', label: 'Production', icon: '⏱' },
   { id: 'expenses', label: 'Expenses', icon: '💲' },
   { id: 'products', label: 'Products', icon: '📦' },
