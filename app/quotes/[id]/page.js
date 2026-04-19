@@ -159,6 +159,13 @@ export default function QuoteDetailPage({ params }) {
     setQuote({ ...quote, status });
   }
 
+  async function deleteQuote() {
+    if (!confirm('Are you sure you want to delete this quote? This cannot be undone.')) return;
+    await supabase.from('quote_items').delete().eq('quote_id', id);
+    await supabase.from('quotes').delete().eq('id', id);
+    router.push('/quotes');
+  }
+
   async function sendQuote() {
     if (!customer?.email) { alert('Customer has no email address'); return; }
     setSending(true);
@@ -227,6 +234,9 @@ export default function QuoteDetailPage({ params }) {
                   {saving ? 'Saving...' : 'Save Quote'}
                 </button>
               )}
+              <button onClick={deleteQuote} style={{ padding: '8px 14px', background: 'white', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+                Delete
+              </button>
               <button onClick={sendQuote} disabled={sending || items.length === 0} style={{ padding: '8px 14px', background: sending || items.length === 0 ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
                 {sending ? 'Sending...' : 'Send to Customer'}
               </button>
