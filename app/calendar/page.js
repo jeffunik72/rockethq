@@ -69,8 +69,8 @@ export default function CalendarPage() {
 
   async function fetchData() {
     const [{ data: quotesData }, { data: ordersData }, { data: jobsData }, { data: tasksData }] = await Promise.all([
-      supabase.from('jobs').select('*, customers(name)').not('due_date', 'is', null).in('status', ['New Quote', 'Quote Sent']),
-      supabase.from('jobs').select('*, customers(name)').not('due_date', 'is', null).not('status', 'in', '("New Quote","Quote Sent","Cancelled","Delivered")'),
+      supabase.from('jobs').select('*, customers(name, company)').not('due_date', 'is', null).in('status', ['New Quote', 'Quote Sent']),
+      supabase.from('jobs').select('*, customers(name, company)').not('due_date', 'is', null).not('status', 'in', '("New Quote","Quote Sent","Cancelled","Delivered")'),
       supabase.from('production_jobs').select('*, customers(name)').not('due_date', 'is', null),
       supabase.from('tasks').select('*, customers(name)').not('due_date', 'is', null).neq('status', 'Completed'),
     ]);
@@ -124,6 +124,7 @@ export default function CalendarPage() {
       title: (q.customers?.name || 'Quote') + ' — Quote Due',
       number: 'J-' + String(q.job_number || '').padStart(4, '0'),
       customer: q.customers?.name || 'Unknown Customer',
+      company: q.customers?.company || null,
       color: STATUS_COLORS[q.status] || '#3b82f6',
       status: q.status,
       link: '/jobs/' + q.id,
@@ -137,6 +138,7 @@ export default function CalendarPage() {
       title: (o.customers?.name || 'Order') + ' — Order Due',
       number: 'J-' + String(o.job_number || '').padStart(4, '0'),
       customer: o.customers?.name || 'Unknown Customer',
+      company: o.customers?.company || null,
       color: STATUS_COLORS[o.status] || '#8b5cf6',
       status: o.status,
       link: '/jobs/' + o.id,
@@ -374,8 +376,10 @@ export default function CalendarPage() {
                             )}
                             {(event.type === 'quote' || event.type === 'order' || event.type === 'job') && (
                               <div>
-                                <div style={{ fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>{event.number}</div>
-                                <div style={{ fontSize: '10px', fontWeight: 600, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</div>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: '1px' }}>{event.number}</div>
+                                <div style={{ fontSize: '11px', fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</div>
+                                {event.company && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.company}</div>}
+                                <div style={{ marginTop: '3px', display: 'inline-block', background: 'rgba(0,0,0,0.2)', color: 'white', borderRadius: '3px', padding: '1px 5px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase' }}>{event.status}</div>
                               </div>
                             )}
                           </div>
@@ -460,9 +464,10 @@ export default function CalendarPage() {
                             )}
                             {(event.type === 'quote' || event.type === 'order' || event.type === 'job') && (
                               <div>
-                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.75)', marginBottom: '1px' }}>{event.number}</div>
-                                <div style={{ fontSize: '11px', fontWeight: 700, color: 'white' }}>{event.customer}</div>
-                                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginTop: '2px' }}>{event.status}</div>
+                                <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: '2px' }}>{event.number}</div>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: 'white', marginBottom: '1px' }}>{event.customer}</div>
+                                {event.company && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>{event.company}</div>}
+                                <div style={{ display: 'inline-block', background: 'rgba(0,0,0,0.2)', color: 'white', borderRadius: '3px', padding: '2px 6px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase' }}>{event.status}</div>
                               </div>
                             )}
                           </div>
