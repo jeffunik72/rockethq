@@ -73,7 +73,7 @@ export default function CustomersPage() {
                 {loading && <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>Loading...</td></tr>}
                 {!loading && customers.length === 0 && <tr><td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af' }}>No customers yet. Add your first one!</td></tr>}
                 {customers.map(c => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <tr key={c.id} style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>{c.name}</td>
                     <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{c.company || '—'}</td>
                     <td style={{ padding: '10px 16px', fontSize: '13px', color: '#2563eb' }}>{c.email || '—'}</td>

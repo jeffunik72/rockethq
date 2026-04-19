@@ -172,7 +172,7 @@ export default function QuotesPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  {['Quote #', 'Customer', 'Due Date', 'Total', 'Status', 'Actions'].map(h => (
+                  {['Quote #', 'Customer', 'Due Date', 'Total', 'Status'].map(h => (
                     <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>{h}</th>
                   ))}
                 </tr>
@@ -184,7 +184,7 @@ export default function QuotesPage() {
                   const sc = statusColors[q.status] || statusColors['New Quote'];
                   return (
                     <tr key={q.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => router.push('/quotes/' + q.id)}>{settings?.quote_prefix || 'Q'}-{String(q.quote_number || i + 1).padStart(4, '0')}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>{settings?.quote_prefix || 'Q'}-{String(q.quote_number || i + 1).padStart(4, '0')}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600 }}>{q.customers?.name || 'N/A'}</div>
                         <div style={{ fontSize: '11px', color: '#6b7280' }}>{q.customers?.email}</div>
@@ -194,13 +194,7 @@ export default function QuotesPage() {
                       <td style={{ padding: '10px 16px' }}>
                         <span style={{ background: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>{q.status}</span>
                       </td>
-                      <td style={{ padding: '10px 16px' }}><div style={{ display: 'flex', gap: '6px' }}><button onClick={() => router.push('/quotes/' + q.id)} style={{ padding: '5px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>View →</button><button onClick={() => sendQuote(q, i)}
-                          disabled={sending === q.id}
-                          style={{ padding: '5px 12px', background: sending === q.id ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: sending === q.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
-                        >
-                          {sending === q.id ? 'Sending...' : '✉ Send'}
-                        </button></div>
-                      </td>
+                      
                     </tr>
                   );
                 })}
