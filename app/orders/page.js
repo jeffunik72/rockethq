@@ -162,7 +162,7 @@ export default function OrdersPage() {
                   const sc = statusColors[o.status] || statusColors['New'];
                   const pc = paymentColors[o.payment_status] || paymentColors['Unpaid'];
                   return (
-                    <tr key={o.id} style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                    <tr key={o.id} onClick={() => router.push('/orders/' + o.id)} style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
                       <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>
                         ORD-{String(o.order_number || i + 1).padStart(4, '0')}
                       </td>
@@ -190,9 +190,7 @@ export default function OrdersPage() {
                           {Object.keys(paymentColors).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
-                      <td style={{ padding: '10px 16px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => router.pus</td>
+
                     </tr>
                   );
                 })}
