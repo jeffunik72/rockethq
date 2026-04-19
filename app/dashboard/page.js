@@ -72,12 +72,12 @@ export default function DashboardPage() {
       { data: invoices },
       { data: jobs },
     ] = await Promise.all([
-      supabase.from('orders').select('*').gte('created_at', startISO).lte('created_at', endISO),
-      supabase.from('orders').select('*').gte('created_at', prevStartISO).lte('created_at', prevEndISO),
-      supabase.from('quotes').select('*').gte('created_at', startISO).lte('created_at', endISO),
-      supabase.from('quotes').select('*').gte('created_at', prevStartISO).lte('created_at', prevEndISO),
+      supabase.from('jobs').select('*').not('status', 'in', '("New Quote","Quote Sent","Cancelled")').gte('created_at', startISO).lte('created_at', endISO),
+      supabase.from('jobs').select('*').not('status', 'in', '("New Quote","Quote Sent","Cancelled")').gte('created_at', prevStartISO).lte('created_at', prevEndISO),
+      supabase.from('jobs').select('*').gte('created_at', startISO).lte('created_at', endISO),
+      supabase.from('jobs').select('*').gte('created_at', prevStartISO).lte('created_at', prevEndISO),
       supabase.from('customers').select('*').gte('created_at', startISO).lte('created_at', endISO),
-      supabase.from('invoices').select('*'),
+      supabase.from('jobs').select('id, total, amount_due, amount_paid, payment_status, status, customer_id').not('status', 'in', '("New Quote","Quote Sent")'),
       supabase.from('production_jobs').select('*'),
     ]);
 
@@ -86,19 +86,19 @@ export default function DashboardPage() {
     const prevRevenue = (prevOrders || []).reduce((s, o) => s + (o.total || 0), 0);
 
     // Invoices
-    const unpaidInvoices = (invoices || []).filter(i => i.status === 'Unpaid' || i.status === 'Partial');
+    const unpaidInvoices = (invoices || []).filter(i => i.payment_status === 'Unpaid' || i.payment_status === 'Partial');
     const outstandingAmount = unpaidInvoices.reduce((s, i) => s + (i.amount_due || 0), 0);
 
     // Pipeline
-    const openQuotes = (quotes || []).filter(q => q.status === 'New Quote' || q.status === 'Sent');
+    const openQuotes = (quotes || []).filter(q => q.status === 'New Quote' || q.status === 'Quote Sent');
     const pipelineValue = openQuotes.reduce((s, q) => s + (q.total || 0), 0);
 
     // Conversion
-    const accepted = (quotes || []).filter(q => q.status === 'Accepted').length;
+    const accepted = (quotes || []).filter(q => !['New Quote', 'Quote Sent', 'Cancelled'].includes(q.status)).length;
     const convRate = quotes?.length > 0 ? (accepted / quotes.length * 100).toFixed(1) : 0;
 
     // All quotes for pipeline chart
-    const { data: allQuotes } = await supabase.from('quotes').select('status, total');
+    const { data: allQuotes } = await supabase.from('jobs').select('status, total');
     const statusGroups = {};
     (allQuotes || []).forEach(q => {
       statusGroups[q.status] = (statusGroups[q.status] || 0) + 1;
@@ -114,7 +114,7 @@ export default function DashboardPage() {
       const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       dailyRevenue[key] = 0;
     }
-    (orders || []).forEach(o => {
+    (orders || []).filter(o => o.customer_id).forEach(o => {
       const d = new Date(o.created_at);
       const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       if (dailyRevenue[key] !== undefined) dailyRevenue[key] += (o.total || 0);
@@ -124,7 +124,7 @@ export default function DashboardPage() {
     // Top customers
     const customerTotals = {};
     const customerNames = {};
-    (orders || []).forEach(o => {
+    (orders || []).filter(o => o.customer_id).forEach(o => {
       customerTotals[o.customer_id] = (customerTotals[o.customer_id] || 0) + (o.total || 0);
     });
     const { data: allCustomers } = await supabase.from('customers').select('id, name, company');

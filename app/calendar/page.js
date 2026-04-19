@@ -48,8 +48,8 @@ export default function CalendarPage() {
 
   async function fetchData() {
     const [{ data: quotesData }, { data: ordersData }, { data: jobsData }] = await Promise.all([
-      supabase.from('quotes').select('*, customers(name)').not('due_date', 'is', null),
-      supabase.from('orders').select('*, customers(name)').not('due_date', 'is', null),
+      supabase.from('jobs').select('*, customers(name)').not('due_date', 'is', null).in('status', ['New Quote', 'Quote Sent']),
+      supabase.from('jobs').select('*, customers(name)').not('due_date', 'is', null).not('status', 'in', '("New Quote","Quote Sent","Cancelled","Delivered")'),
       supabase.from('production_jobs').select('*, customers(name)').not('due_date', 'is', null),
     ]);
     setQuotes(quotesData || []);
@@ -99,11 +99,11 @@ export default function CalendarPage() {
       id: 'q-' + q.id,
       type: 'quote',
       title: (q.customers?.name || 'Quote') + ' — Quote Due',
-      number: 'Q-' + String(q.quote_number || '').padStart(4, '0'),
+      number: 'J-' + String(q.job_number || '').padStart(4, '0'),
       customer: q.customers?.name || 'Unknown Customer',
       color: STATUS_COLORS[q.status] || '#3b82f6',
       status: q.status,
-      link: '/quotes/' + q.id,
+      link: '/jobs/' + q.id,
       time: null,
       total: q.total,
     }));
@@ -112,11 +112,11 @@ export default function CalendarPage() {
       id: 'o-' + o.id,
       type: 'order',
       title: (o.customers?.name || 'Order') + ' — Order Due',
-      number: 'ORD-' + String(o.order_number || '').padStart(4, '0'),
+      number: 'J-' + String(o.job_number || '').padStart(4, '0'),
       customer: o.customers?.name || 'Unknown Customer',
       color: STATUS_COLORS[o.status] || '#8b5cf6',
       status: o.status,
-      link: '/orders/' + o.id,
+      link: '/jobs/' + o.id,
       time: null,
       total: o.total,
     }));

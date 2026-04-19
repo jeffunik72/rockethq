@@ -105,15 +105,20 @@ export default function PipelinePage() {
       finalCustomerId = newCustomer.id;
     }
 
-    // Create quote
+    // Get next job number
+    const { data: numData } = await supabase.rpc('get_next_job_number');
+
+    // Create job
     const { data: quote } = await supabase
-      .from('quotes')
+      .from('jobs')
       .insert([{
         customer_id: finalCustomerId,
         status: 'New Quote',
         total: 0,
+        job_number: numData,
         due_date: dueDate || null,
         notes: lead.notes || '',
+        lead_id: lead.id,
       }])
       .select()
       .single();
@@ -128,7 +133,7 @@ export default function PipelinePage() {
     setShowConvertModal(false);
     setSelectedLead(null);
     fetchLeads();
-    router.push('/quotes/' + quote.id);
+    router.push('/jobs/' + quote.id);
   }
 
   function handleDragStart(lead) { setDragLead(lead); }

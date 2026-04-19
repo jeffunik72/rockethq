@@ -4,8 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
   { id: 'pipeline', label: 'Pipeline', icon: '⇅' },
-  { id: 'quotes', label: 'Quotes', icon: '📄' },
-  { id: 'orders', label: 'Orders', icon: '📋' },
+  { id: 'jobs', label: 'Jobs', icon: '📋' },
   { id: 'customers', label: 'Customers', icon: '👤' },
   { id: 'emails', label: 'Emails', icon: '📧' },
   { id: 'calendar', label: 'Calendar', icon: '📅' },
