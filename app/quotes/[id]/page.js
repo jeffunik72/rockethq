@@ -331,8 +331,34 @@ export default function QuoteDetailPage({ params }) {
                 </div>
               </div>
 
-              {/* Shipping */}
+              {/* Sales Rep + Shipping */}
               <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Sales Rep</div>
+                <div style={{ marginBottom: '14px' }}>
+                  {editMode ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {staff.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => updateQuoteField('sales_rep', s.name)}
+                          style={{ padding: '4px 12px', background: quote.sales_rep === s.name ? '#2563eb' : '#f3f4f6', color: quote.sales_rep === s.name ? 'white' : '#374151', border: '1px solid', borderColor: quote.sales_rep === s.name ? '#2563eb' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          {s.name}
+                        </button>
+                      ))}
+                      {quote.sales_rep && (
+                        <button onClick={() => updateQuoteField('sales_rep', '')} style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '100px', fontSize: '11px', color: '#9ca3af', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
+                      )}
+                    </div>
+                  ) : (
+                    <span style={{ padding: '4px 12px', background: quote.sales_rep ? '#eff6ff' : '#f3f4f6', color: quote.sales_rep ? '#2563eb' : '#9ca3af', border: '1px solid', borderColor: quote.sales_rep ? '#bfdbfe' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>
+                      {quote.sales_rep || 'Unassigned'}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ height: '1px', background: '#f3f4f6', marginBottom: '12px' }} />
+
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Shipping</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
@@ -352,31 +378,6 @@ export default function QuoteDetailPage({ params }) {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Sales Rep pill row */}
-            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Sales Rep:</span>
-              {editMode ? (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {staff.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => updateQuoteField('sales_rep', s.name)}
-                      style={{ padding: '4px 12px', background: quote.sales_rep === s.name ? '#2563eb' : '#f3f4f6', color: quote.sales_rep === s.name ? 'white' : '#374151', border: '1px solid', borderColor: quote.sales_rep === s.name ? '#2563eb' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      {s.name}
-                    </button>
-                  ))}
-                  {quote.sales_rep && (
-                    <button onClick={() => updateQuoteField('sales_rep', '')} style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '100px', fontSize: '11px', color: '#9ca3af', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
-                  )}
-                </div>
-              ) : (
-                <span style={{ padding: '4px 12px', background: quote.sales_rep ? '#eff6ff' : '#f3f4f6', color: quote.sales_rep ? '#2563eb' : '#9ca3af', border: '1px solid', borderColor: quote.sales_rep ? '#bfdbfe' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>
-                  {quote.sales_rep || 'Unassigned'}
-                </span>
-              )}
             </div>
           </div>
 
