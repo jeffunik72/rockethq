@@ -1,20 +1,18 @@
-import { getServerSession } from 'next-auth';
 import { google } from 'googleapis';
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
-    if (!session?.accessToken) {
-      return Response.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const { to, subject, body, threadId, accessToken } = await request.json();
 
-    const { to, subject, body, threadId } = await request.json();
+    if (!accessToken) {
+      return Response.json({ error: 'No access token' }, { status: 401 });
+    }
 
     const auth = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET
     );
-    auth.setCredentials({ access_token: session.accessToken });
+    auth.setCredentials({ access_token: accessToken });
 
     const gmail = google.gmail({ version: 'v1', auth });
 

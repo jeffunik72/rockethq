@@ -34,7 +34,9 @@ export default function EmailsPage() {
 
   async function fetchEmails(pageToken = null, query = '') {
     setLoading(true);
-    let url = '/api/gmail?limit=25';
+    const token = googleSession?.accessToken;
+    if (!token) { setLoading(false); return; }
+    let url = '/api/gmail?limit=25&token=' + encodeURIComponent(token);
     if (pageToken) url += '&pageToken=' + pageToken;
     if (query) url += '&q=' + encodeURIComponent(query);
     const res = await fetch(url);
@@ -48,7 +50,8 @@ export default function EmailsPage() {
 
   async function fetchEmailBody(id) {
     setLoadingBody(true);
-    const res = await fetch('/api/gmail/message?id=' + id);
+    const token = googleSession?.accessToken || '';
+    const res = await fetch('/api/gmail/message?id=' + id + '&token=' + encodeURIComponent(token));
     const data = await res.json();
     setEmailBody(data.body || data.snippet || '');
     setLoadingBody(false);
@@ -60,7 +63,7 @@ export default function EmailsPage() {
     const res = await fetch('/api/gmail/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(compose),
+      body: JSON.stringify({ ...compose, accessToken: googleSession?.accessToken }),
     });
     const data = await res.json();
     if (data.success) {

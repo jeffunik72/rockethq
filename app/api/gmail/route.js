@@ -1,23 +1,22 @@
-import { getServerSession } from 'next-auth';
 import { google } from 'googleapis';
 
 export async function GET(request) {
   try {
-    const session = await getServerSession();
-    if (!session?.accessToken) {
-      return Response.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
-    const maxResults = parseInt(searchParams.get('limit') || '20');
+    const accessToken = searchParams.get('token');
+    const maxResults = parseInt(searchParams.get('limit') || '25');
     const pageToken = searchParams.get('pageToken') || null;
     const query = searchParams.get('q') || '';
+
+    if (!accessToken) {
+      return Response.json({ error: 'No access token' }, { status: 401 });
+    }
 
     const auth = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET
     );
-    auth.setCredentials({ access_token: session.accessToken });
+    auth.setCredentials({ access_token: accessToken });
 
     const gmail = google.gmail({ version: 'v1', auth });
 
