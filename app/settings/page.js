@@ -1,4 +1,5 @@
 'use client';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -11,6 +12,7 @@ const SECTIONS = [
   { id: 'imprint', label: 'Imprint Methods', icon: '🖨' },
   { id: 'portal', label: 'Customer Portal', icon: '🔗' },
   { id: 'payments', label: 'Payments', icon: '💳' },
+  { id: 'google', label: 'Google Workspace', icon: '🔗' },
 ];
 
 const IMPRINT_METHODS = [
@@ -31,6 +33,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { data: googleSession, status: googleStatus } = useSession();
   const [saved, setSaved] = useState(false);
   const [checking, setChecking] = useState(true);
   const router = useRouter();
@@ -371,6 +374,92 @@ export default function SettingsPage() {
                       Activate Stripe Account
                     </a>
                   </div>
+                </div>
+              )}
+
+              {/* GOOGLE WORKSPACE */}
+              {activeSection === 'google' && (
+                <div>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>Google Workspace</h2>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '24px' }}>Connect your Google account to enable Gmail and Google Calendar inside RocketHQ.</p>
+
+                  {googleStatus === 'authenticated' && googleSession?.accessToken ? (
+                    <div>
+                      <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '10px', padding: '20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ fontSize: '28px' }}>✓</div>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#15803d' }}>Google Account Connected</div>
+                            <div style={{ fontSize: '12px', color: '#16a34a', marginTop: '2px' }}>{googleSession.user?.email}</div>
+                          </div>
+                        </div>
+                        <button onClick={() => signOut()} style={{ padding: '8px 16px', background: 'white', border: '1px solid #fecaca', color: '#dc2626', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          Disconnect
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                        {[
+                          { icon: '📧', label: 'Gmail', desc: 'View and send emails from your inbox', enabled: true },
+                          { icon: '📅', label: 'Google Calendar', desc: 'Sync events with your Google Calendar', enabled: true },
+                          { icon: '📁', label: 'Google Drive', desc: 'Store imprint files and artwork', enabled: true },
+                        ].map(service => (
+                          <div key={service.label} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ fontSize: '24px' }}>{service.icon}</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827' }}>{service.label}</div>
+                              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{service.desc}</div>
+                            </div>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '14px 16px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>Token Expires Periodically</div>
+                        <div style={{ fontSize: '12px', color: '#b45309', marginBottom: '12px' }}>If Gmail or Calendar stops working, disconnect and reconnect your Google account to refresh the token.</div>
+                        <button onClick={() => { signOut({ redirect: false }).then(() => signIn('google')); }} style={{ padding: '8px 16px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          Reconnect Google Account
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ background: '#f8f9fb', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '32px', textAlign: 'center', marginBottom: '20px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔗</div>
+                        <div style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>Connect Google Workspace</div>
+                        <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '24px', maxWidth: '360px', margin: '0 auto 24px' }}>
+                          Connect your Google account to enable Gmail inbox, Google Calendar sync, and Google Drive file storage inside RocketHQ.
+                        </div>
+                        <button
+                          onClick={() => signIn('google')}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '12px 24px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 18 18">
+                            <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
+                            <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
+                            <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18z"/>
+                            <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
+                          </svg>
+                          Connect Google Workspace
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                        {[
+                          { icon: '📧', label: 'Gmail Inbox', desc: 'View and reply to emails without leaving RocketHQ' },
+                          { icon: '📅', label: 'Calendar Sync', desc: 'See Google Calendar events alongside your jobs' },
+                          { icon: '📁', label: 'Drive Storage', desc: 'Store artwork and imprint files per job' },
+                        ].map(f => (
+                          <div key={f.label} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+                            <div style={{ fontSize: '28px', marginBottom: '8px' }}>{f.icon}</div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>{f.label}</div>
+                            <div style={{ fontSize: '11px', color: '#6b7280' }}>{f.desc}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
