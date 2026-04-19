@@ -70,15 +70,14 @@ export default function CalendarPage() {
   }, [googleSession, currentDate]);
 
   async function fetchData() {
-    const [{ data: quotesData }, { data: ordersData }, { data: jobsData }, { data: tasksData }] = await Promise.all([
+    const [{ data: quotesData }, { data: ordersData }, { data: tasksData }] = await Promise.all([
       supabase.from('jobs').select('*, customers(name, company)').not('due_date', 'is', null).in('status', ['New Quote', 'Quote Sent']),
       supabase.from('jobs').select('*, customers(name, company)').not('due_date', 'is', null).not('status', 'in', '("New Quote","Quote Sent","Cancelled","Delivered")'),
-      supabase.from('production_jobs').select('*, customers(name)').not('due_date', 'is', null),
       supabase.from('tasks').select('*, customers(name)').not('due_date', 'is', null).neq('status', 'Completed'),
     ]);
     setQuotes(quotesData || []);
     setOrders(ordersData || []);
-    setJobs(jobsData || []);
+    setJobs([]);
     setCalTasks(tasksData || []);
     setLoading(false);
   }
@@ -152,14 +151,17 @@ export default function CalendarPage() {
 
     jobs.filter(j => j.due_date === dateStr).forEach(j => events.push({
       id: 'j-' + j.id,
+      rawId: j.id,
       type: 'job',
       title: j.title || (j.customers?.name + ' — Production'),
-      number: j.title || 'Production Job',
+      number: 'J-' + String(j.job_number || '').padStart(4, '0'),
       customer: j.customers?.name || 'Production',
-      color: '#f97316',
-      status: j.stage,
-      link: '/production',
+      company: j.customers?.company || null,
+      color: STATUS_COLORS[j.status] || '#f97316',
+      status: j.status,
+      link: '/jobs/' + j.id,
       time: null,
+      total: j.total,
     }));
 
     calTasks.filter(t => t.due_date === dateStr).forEach(t => events.push({
