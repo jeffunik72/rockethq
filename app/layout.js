@@ -1,5 +1,6 @@
 import { Geist } from 'next/font/google';
 import './globals.css';
+import { SessionProvider } from './components/SessionProvider';
 
 const geist = Geist({ subsets: ['latin'] });
 
@@ -10,9 +11,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={geist.className} style={{ margin: 0, padding: 0 }}>
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
