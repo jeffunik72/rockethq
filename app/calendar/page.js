@@ -244,9 +244,12 @@ export default function CalendarPage() {
       await supabase.from('tasks').update({ due_date: dateStr }).eq('id', dragging.rawId);
       setCalTasks(calTasks.map(t => t.id === dragging.rawId ? { ...t, due_date: dateStr } : t));
     } else {
-      await supabase.from('jobs').update({ due_date: dateStr }).eq('id', dragging.rawId);
-      setQuotes(quotes.map(q => q.id === dragging.rawId ? { ...q, due_date: dateStr } : q));
-      setOrders(orders.map(o => o.id === dragging.rawId ? { ...o, due_date: dateStr } : o));
+      // Update job in database
+      const { error } = await supabase.from('jobs').update({ due_date: dateStr }).eq('id', dragging.rawId);
+      if (error) { alert('Error updating job: ' + error.message); setDragging(null); return; }
+      // Update all job states
+      setQuotes(prev => prev.map(q => q.id === dragging.rawId ? { ...q, due_date: dateStr } : q));
+      setOrders(prev => prev.map(o => o.id === dragging.rawId ? { ...o, due_date: dateStr } : o));
     }
     setDragging(null);
   }
@@ -364,7 +367,20 @@ export default function CalendarPage() {
                         {events.length > 0 && <span style={{ fontSize: '10px', color: '#9ca3af' }}>{events.length} {events.length === 1 ? 'item' : 'items'}</span>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        {events.slice(0, 3).map(event => (
+                        {events.filter(e => e.type === 'task').slice(0, 2).map(event => (
+                          <div
+                            key={event.id}
+                            draggable
+                            onDragStart={() => setDragging(event)}
+                            onDragEnd={() => setDragging(null)}
+                            onClick={() => router.push('/tasks')}
+                            style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '2px 5px', background: 'white', border: '1px dashed ' + event.color, borderRadius: '4px', cursor: 'grab', opacity: dragging?.id === event.id ? 0.5 : 1, marginBottom: '1px' }}
+                          >
+                            <span style={{ fontSize: '9px', color: event.color, flexShrink: 0 }}>☐</span>
+                            <span style={{ fontSize: '10px', fontWeight: 600, color: event.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</span>
+                          </div>
+                        ))}
+                        {events.filter(e => e.type !== 'task').slice(0, 3).map(event => (
                           <div
                             key={event.id}
                             draggable={event.type !== 'google'}
@@ -414,8 +430,8 @@ export default function CalendarPage() {
                             )}
                           </div>
                         ))}
-                        {events.length > 3 && (
-                          <div style={{ fontSize: '10px', color: '#6b7280', padding: '1px 6px' }}>+{events.length - 3} more</div>
+                        {events.filter(e => e.type !== 'task').length > 3 && (
+                          <div style={{ fontSize: '10px', color: '#6b7280', padding: '1px 6px' }}>+{events.filter(e => e.type !== 'task').length - 3} more</div>
                         )}
                       </div>
                     </div>
