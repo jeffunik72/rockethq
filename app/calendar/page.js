@@ -50,6 +50,8 @@ export default function CalendarPage() {
   const [calTasks, setCalTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [dragging, setDragging] = useState(null);
+  const [dragOver, setDragOver] = useState(null);
   const [showNewEvent, setShowNewEvent] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', endTime: '', description: '' });
   const [savingEvent, setSavingEvent] = useState(false);
@@ -120,6 +122,7 @@ export default function CalendarPage() {
 
     quotes.filter(q => q.due_date === dateStr).forEach(q => events.push({
       id: 'q-' + q.id,
+      rawId: q.id,
       type: 'quote',
       title: (q.customers?.name || 'Quote') + ' — Quote Due',
       number: 'J-' + String(q.job_number || '').padStart(4, '0'),
@@ -134,6 +137,7 @@ export default function CalendarPage() {
 
     orders.filter(o => o.due_date === dateStr).forEach(o => events.push({
       id: 'o-' + o.id,
+      rawId: o.id,
       type: 'order',
       title: (o.customers?.name || 'Order') + ' — Order Due',
       number: 'J-' + String(o.job_number || '').padStart(4, '0'),
@@ -160,6 +164,7 @@ export default function CalendarPage() {
 
     calTasks.filter(t => t.due_date === dateStr).forEach(t => events.push({
       id: 't-' + t.id,
+      rawId: t.id,
       type: 'task',
       title: t.title,
       number: null,
@@ -229,6 +234,21 @@ export default function CalendarPage() {
     else if (view === 'week') d.setDate(d.getDate() + dir * 7);
     else d.setDate(d.getDate() + dir);
     setCurrentDate(d);
+  }
+
+  async function handleDrop(dateStr) {
+    if (!dragging) return;
+    setDragOver(null);
+
+    if (dragging.type === 'task') {
+      await supabase.from('tasks').update({ due_date: dateStr }).eq('id', dragging.rawId);
+      setCalTasks(calTasks.map(t => t.id === dragging.rawId ? { ...t, due_date: dateStr } : t));
+    } else {
+      await supabase.from('jobs').update({ due_date: dateStr }).eq('id', dragging.rawId);
+      setQuotes(quotes.map(q => q.id === dragging.rawId ? { ...q, due_date: dateStr } : q));
+      setOrders(orders.map(o => o.id === dragging.rawId ? { ...o, due_date: dateStr } : o));
+    }
+    setDragging(null);
   }
 
   function getHeaderTitle() {
@@ -330,7 +350,13 @@ export default function CalendarPage() {
                   const events = getAllEventsForDate(dateStr);
                   const isToday = dateStr === todayStr;
                   return (
-                    <div key={idx} style={{ border: '1px solid #e5e7eb', borderTop: 'none', borderLeft: idx % 7 === 0 ? 'none' : '1px solid #e5e7eb', background: isToday ? '#eff6ff' : 'white', minHeight: '120px', padding: '6px' }}>
+                    <div
+                      key={idx}
+                      onDragOver={e => { e.preventDefault(); setDragOver(dateStr); }}
+                      onDragLeave={() => setDragOver(null)}
+                      onDrop={() => handleDrop(dateStr)}
+                      style={{ border: '1px solid #e5e7eb', borderTop: 'none', borderLeft: idx % 7 === 0 ? 'none' : '1px solid #e5e7eb', background: dragOver === dateStr ? '#f0f9ff' : isToday ? '#eff6ff' : 'white', minHeight: '120px', padding: '6px', transition: 'background 0.15s' }}
+                    >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                         <span style={{ fontSize: '13px', fontWeight: isToday ? 700 : 400, color: isToday ? '#2563eb' : isCurrentMonth ? '#111827' : '#d1d5db', width: '24px', height: '24px', borderRadius: '50%', background: isToday ? '#2563eb' : 'transparent', color: isToday ? 'white' : isCurrentMonth ? '#111827' : '#d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {date.getDate()}
@@ -341,13 +367,17 @@ export default function CalendarPage() {
                         {events.slice(0, 3).map(event => (
                           <div
                             key={event.id}
+                            draggable={event.type !== 'google'}
+                            onDragStart={() => event.type !== 'google' && setDragging(event)}
+                            onDragEnd={() => setDragging(null)}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
                             title={event.title}
                             style={{
                               marginBottom: '2px',
-                              cursor: 'pointer',
+                              cursor: event.type !== 'google' ? 'grab' : 'pointer',
                               borderRadius: '4px',
                               overflow: 'hidden',
+                              opacity: dragging?.id === event.id ? 0.5 : 1,
                               ...(event.type === 'task' ? {
                                 background: 'white',
                                 border: '1px dashed ' + event.color,
@@ -418,19 +448,29 @@ export default function CalendarPage() {
                   const events = getAllEventsForDate(dateStr);
                   const isToday = dateStr === todayStr;
                   return (
-                    <div key={idx} style={{ borderLeft: idx > 0 ? '1px solid #e5e7eb' : 'none', borderTop: '1px solid #e5e7eb', padding: '8px', background: isToday ? '#eff6ff' : 'white', minHeight: '500px' }}>
+                    <div
+                      key={idx}
+                      onDragOver={e => { e.preventDefault(); setDragOver(dateStr); }}
+                      onDragLeave={() => setDragOver(null)}
+                      onDrop={() => handleDrop(dateStr)}
+                      style={{ borderLeft: idx > 0 ? '1px solid #e5e7eb' : 'none', borderTop: '1px solid #e5e7eb', padding: '8px', background: dragOver === dateStr ? '#f0f9ff' : isToday ? '#eff6ff' : 'white', minHeight: '500px', transition: 'background 0.15s' }}
+                    >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {events.map(event => (
                           <div
                             key={event.id}
+                            draggable={event.type !== 'google'}
+                            onDragStart={() => event.type !== 'google' && setDragging(event)}
+                            onDragEnd={() => setDragging(null)}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
                             style={{
                               marginBottom: '4px',
-                              cursor: 'pointer',
+                              cursor: event.type !== 'google' ? 'grab' : 'pointer',
                               borderRadius: '6px',
                               padding: '6px 8px',
                               fontSize: '12px',
                               lineHeight: 1.5,
+                              opacity: dragging?.id === event.id ? 0.5 : 1,
                               ...(event.type === 'task' ? {
                                 background: 'white',
                                 border: '2px dashed ' + event.color,
@@ -485,7 +525,12 @@ export default function CalendarPage() {
 
           {/* DAY VIEW */}
           {view === 'day' && (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+            <div
+              style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}
+              onDragOver={e => { e.preventDefault(); setDragOver(formatDateStr(currentDate)); }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => handleDrop(formatDateStr(currentDate))}
+            >
               <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', color: '#111827' }}>
                 {currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </div>
@@ -502,8 +547,11 @@ export default function CalendarPage() {
                     {events.map(event => (
                       <div
                         key={event.id}
+                        draggable={event.type !== 'google'}
+                        onDragStart={() => event.type !== 'google' && setDragging(event)}
+                        onDragEnd={() => setDragging(null)}
                         onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                        style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '5px solid ' + event.color, borderRadius: '8px', padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px' }}
+                        style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '5px solid ' + event.color, borderRadius: '8px', padding: '12px 16px', cursor: event.type !== 'google' ? 'grab' : 'pointer', display: 'flex', alignItems: 'center', gap: '14px', opacity: dragging?.id === event.id ? 0.5 : 1 }}
                         onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'}
                         onMouseLeave={e => e.currentTarget.style.background = 'white'}
                       >
