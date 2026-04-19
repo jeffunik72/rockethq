@@ -31,7 +31,7 @@ const WRAP_TYPES = ['Full Wrap', 'Partial Wrap', 'Decal', 'Perforated Window', '
 
 function newItem(type) {
   return {
-    item_type: type, description: '', category: type, brand: '', style_number: '', color: '',
+    item_type: type, description: '', category: type, brand: '', style_number: '', color: '', kit_id: '',
     size_xs: 0, size_s: 0, size_m: 0, size_l: 0, size_xl: 0, size_2xl: 0, size_3xl: 0, size_4xl: 0,
     width: '', height: '', material: '', vehicle_year: '', vehicle_make: '', vehicle_model: '', wrap_type: '',
     quantity: 1, unit_price: 0, total: 0, garment_status: 'Not Ordered', taxed: false,
@@ -49,6 +49,10 @@ export default function JobDetailPage({ params }) {
   const [sending, setSending] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
+  const [vehicles, setVehicles] = useState([]);
+  const [kits, setKits] = useState([]);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [showVehicleSearch, setShowVehicleSearch] = useState(null); // item idx
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -76,11 +80,15 @@ export default function JobDetailPage({ params }) {
     const { data: itemsData } = await supabase.from('job_items').select('*').eq('job_id', id);
     setItems(itemsData || []);
 
-    const [{ data: staffData }, { data: settingsData }, { data: customersData }] = await Promise.all([
+    const [{ data: staffData }, { data: settingsData }, { data: customersData }, { data: vehiclesData }, { data: kitsData }] = await Promise.all([
       supabase.from('staff').select('*').eq('active', true),
       supabase.from('settings').select('*').single(),
       supabase.from('customers').select('id, name, company, email, phone'),
+      supabase.from('vehicles').select('*').order('make').order('model').order('year', { ascending: false }),
+      supabase.from('material_kits').select('*, kit_materials(*, materials(*))').eq('active', true).order('name'),
     ]);
+    if (vehiclesData) setVehicles(vehiclesData);
+    if (kitsData) setKits(kitsData);
 
     if (staffData) setStaff(staffData);
     if (settingsData) {
@@ -92,6 +100,57 @@ export default function JobDetailPage({ params }) {
   }
 
   function addItem(type) { setItems([...items, newItem(type)]); setShowTypeModal(false); }
+
+  function getKitSellPrice(kit, sqft) {
+    if (!kit || !sqft) return 0;
+    const matCost = (kit.kit_materials || []).reduce((s, km) => s + ((km.materials?.cost_per_sqft || 0) * (km.quantity_per_sqft || 1)), 0);
+    const withWaste = matCost * (1 + (kit.waste_factor || 0) / 100);
+    const totalCost = (withWaste + (kit.install_cost_sqft || 0)) * sqft;
+    return totalCost / (1 - (kit.target_margin || 40) / 100);
+  }
+
+  function applyVehicleKit(idx, vehicle, wrapType, kit) {
+    if (!vehicle || !kit) return;
+    const sqftMap = {
+      'Full Wrap': vehicle.full_wrap_sqft,
+      'Partial Wrap': vehicle.partial_wrap_sqft,
+      'Hood Wrap': vehicle.hood_sqft,
+      'Roof Wrap': vehicle.roof_sqft,
+      'Tailgate Wrap': vehicle.tailgate_sqft,
+      'Door Wrap': vehicle.doors_sqft,
+    };
+    const sqft = sqftMap[wrapType] || vehicle.full_wrap_sqft || 0;
+    const price = getKitSellPrice(kit, sqft);
+    const updated = [...items];
+    updated[idx] = {
+      ...updated[idx],
+      vehicle_year: String(vehicle.year),
+      vehicle_make: vehicle.make,
+      vehicle_model: vehicle.model,
+      wrap_type: wrapType,
+      width: sqft,
+      description: vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + ' - ' + wrapType,
+      unit_price: parseFloat(price.toFixed(2)),
+      quantity: 1,
+      total: parseFloat(price.toFixed(2)),
+    };
+    setItems(updated);
+    setShowVehicleSearch(null);
+    setVehicleSearch('');
+  }
+
+  function applyLargeFormatKit(idx, kit, sqft) {
+    if (!kit || !sqft) return;
+    const price = getKitSellPrice(kit, sqft);
+    const updated = [...items];
+    updated[idx] = {
+      ...updated[idx],
+      unit_price: parseFloat(price.toFixed(2)),
+      quantity: 1,
+      total: parseFloat(price.toFixed(2)),
+    };
+    setItems(updated);
+  }
 
   function updateItem(index, field, value) {
     const updated = [...items];
@@ -481,20 +540,78 @@ export default function JobDetailPage({ params }) {
                         {/* LARGE FORMAT */}
                         {item.item_type === 'large_format' && (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                              {[
-                                { label: 'DESCRIPTION', field: 'description', placeholder: 'e.g. 4x8 Banner', span: true },
-                                { label: 'WIDTH (ft)', field: 'width', type: 'number' },
-                                { label: 'HEIGHT (ft)', field: 'height', type: 'number' },
-                                { label: 'QTY', field: 'quantity', type: 'number' },
-                                { label: 'UNIT PRICE', field: 'unit_price', type: 'number' },
-                              ].map(({ label, field, type, placeholder }) => (
-                                <div key={field}>
-                                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>{label}</div>
-                                  {editMode ? <input type={type || 'text'} value={item[field] || ''} onChange={e => updateItem(idx, field, type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
-                                  : <div style={{ fontSize: '13px' }}>{item[field] || '—'}</div>}
+                            {/* Auto-price calculator */}
+                            {editMode && (
+                              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#15803d', marginBottom: '10px' }}>🖼 Auto-Price Calculator</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '10px', alignItems: 'end' }}>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>WIDTH (ft)</div>
+                                    <input type="number" step="0.1" value={item.width || ''} onChange={e => updateItem(idx, 'width', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>HEIGHT (ft)</div>
+                                    <input type="number" step="0.1" value={item.height || ''} onChange={e => updateItem(idx, 'height', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>KIT/MATERIAL</div>
+                                    <select value={item.kit_id || ''} onChange={e => updateItem(idx, 'kit_id', e.target.value)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                      <option value="">Select kit...</option>
+                                      {kits.filter(k => ['large_format', 'sign', 'banner', 'window'].includes(k.category)).map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>QTY</div>
+                                    <input type="number" value={item.quantity || 1} onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const sqft = (parseFloat(item.width) || 0) * (parseFloat(item.height) || 0);
+                                      const kit = kits.find(k => k.id === item.kit_id);
+                                      if (!sqft || !kit) { alert('Enter width, height and select a kit first'); return; }
+                                      applyLargeFormatKit(idx, kit, sqft * (item.quantity || 1));
+                                    }}
+                                    disabled={!item.width || !item.height || !item.kit_id}
+                                    style={{ padding: '7px 14px', background: (!item.width || !item.height || !item.kit_id) ? '#e5e7eb' : '#16a34a', color: (!item.width || !item.height || !item.kit_id) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.width || !item.height || !item.kit_id) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                  >
+                                    ⚡ Calculate
+                                  </button>
                                 </div>
-                              ))}
+                                {item.width && item.height && (
+                                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#15803d' }}>
+                                    📐 {item.width}ft × {item.height}ft = <strong>{(parseFloat(item.width) * parseFloat(item.height)).toFixed(2)} ft²</strong>
+                                    {item.quantity > 1 && <span> × {item.quantity} = <strong>{(parseFloat(item.width) * parseFloat(item.height) * item.quantity).toFixed(2)} ft² total</strong></span>}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
+                                {editMode ? <input value={item.description || ''} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="e.g. 4x8 Coroplast Sign" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.description || '—'}</div>}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>WIDTH (ft)</div>
+                                {editMode ? <input type="number" step="0.1" value={item.width || ''} onChange={e => updateItem(idx, 'width', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '13px' }}>{item.width || '—'}</div>}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>HEIGHT (ft)</div>
+                                {editMode ? <input type="number" step="0.1" value={item.height || ''} onChange={e => updateItem(idx, 'height', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '13px' }}>{item.height || '—'}</div>}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>QTY</div>
+                                {editMode ? <input type="number" value={item.quantity || 1} onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '13px' }}>{item.quantity}</div>}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>UNIT PRICE</div>
+                                {editMode ? <input type="number" value={item.unit_price || 0} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '14px', fontWeight: 700 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                              </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                               <div>
@@ -513,7 +630,76 @@ export default function JobDetailPage({ params }) {
                         {/* VEHICLE WRAP */}
                         {item.item_type === 'vehicle_wrap' && (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            {/* Auto-price calculator */}
+                            {editMode && (
+                              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#0369a1', marginBottom: '10px' }}>🚗 Auto-Price Calculator</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '10px', alignItems: 'end' }}>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>VEHICLE</div>
+                                    <div style={{ position: 'relative' }}>
+                                      <input
+                                        value={showVehicleSearch === idx ? vehicleSearch : (item.vehicle_year && item.vehicle_make ? item.vehicle_year + ' ' + item.vehicle_make + ' ' + item.vehicle_model : '')}
+                                        onChange={e => { setVehicleSearch(e.target.value); setShowVehicleSearch(idx); }}
+                                        onFocus={() => setShowVehicleSearch(idx)}
+                                        placeholder="Search vehicle..."
+                                        style={{ width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }}
+                                      />
+                                      {showVehicleSearch === idx && vehicleSearch && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '200px', overflowY: 'auto' }}>
+                                          {vehicles.filter(v =>
+                                            (v.make + ' ' + v.model + ' ' + v.year).toLowerCase().includes(vehicleSearch.toLowerCase())
+                                          ).slice(0, 10).map(v => (
+                                            <div key={v.id} onClick={() => { updateItem(idx, 'vehicle_year', String(v.year)); updateItem(idx, 'vehicle_make', v.make); updateItem(idx, 'vehicle_model', v.model); setVehicleSearch(v.year + ' ' + v.make + ' ' + v.model); setShowVehicleSearch(null); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                                              <div style={{ fontWeight: 600 }}>{v.year} {v.make} {v.model}</div>
+                                              <div style={{ fontSize: '11px', color: '#9ca3af' }}>Full: {v.full_wrap_sqft}ft² · Partial: {v.partial_wrap_sqft}ft²</div>
+                                            </div>
+                                          ))}
+                                          {vehicles.filter(v => (v.make + ' ' + v.model + ' ' + v.year).toLowerCase().includes(vehicleSearch.toLowerCase())).length === 0 && (
+                                            <div style={{ padding: '12px', fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>No vehicles found — add to vehicle database in Settings</div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>WRAP TYPE</div>
+                                    <select value={item.wrap_type || ''} onChange={e => updateItem(idx, 'wrap_type', e.target.value)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                      <option value="">Select...</option>
+                                      {WRAP_TYPES.map(w => <option key={w}>{w}</option>)}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>KIT</div>
+                                    <select value={item.kit_id || ''} onChange={e => updateItem(idx, 'kit_id', e.target.value)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                      <option value="">Select kit...</option>
+                                      {kits.filter(k => k.category === 'vehicle_wrap').map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                                    </select>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      const vehicle = vehicles.find(v => v.year === parseInt(item.vehicle_year) && v.make === item.vehicle_make && v.model === item.vehicle_model);
+                                      const kit = kits.find(k => k.id === item.kit_id);
+                                      applyVehicleKit(idx, vehicle, item.wrap_type, kit);
+                                    }}
+                                    disabled={!item.vehicle_make || !item.wrap_type || !item.kit_id}
+                                    style={{ padding: '7px 14px', background: (!item.vehicle_make || !item.wrap_type || !item.kit_id) ? '#e5e7eb' : '#2563eb', color: (!item.vehicle_make || !item.wrap_type || !item.kit_id) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.vehicle_make || !item.wrap_type || !item.kit_id) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                  >
+                                    ⚡ Calculate
+                                  </button>
+                                </div>
+                                {item.vehicle_make && item.wrap_type && (() => {
+                                  const vehicle = vehicles.find(v => v.year === parseInt(item.vehicle_year) && v.make === item.vehicle_make && v.model === item.vehicle_model);
+                                  const sqftMap = { 'Full Wrap': vehicle?.full_wrap_sqft, 'Partial Wrap': vehicle?.partial_wrap_sqft, 'Hood Wrap': vehicle?.hood_sqft, 'Roof Wrap': vehicle?.roof_sqft, 'Tailgate Wrap': vehicle?.tailgate_sqft, 'Door Wrap': vehicle?.doors_sqft };
+                                  const sqft = sqftMap[item.wrap_type];
+                                  if (!sqft) return null;
+                                  return <div style={{ marginTop: '8px', fontSize: '12px', color: '#0369a1' }}>📐 {item.wrap_type}: <strong>{sqft} ft²</strong></div>;
+                                })()}
+                              </div>
+                            )}
+
+                            {/* Vehicle details */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                               {[
                                 { label: 'YEAR', field: 'vehicle_year', placeholder: '2024' },
                                 { label: 'MAKE', field: 'vehicle_make', placeholder: 'Ford' },
@@ -533,15 +719,21 @@ export default function JobDetailPage({ params }) {
                                 </select> : <div style={{ fontSize: '13px' }}>{item.wrap_type || '—'}</div>}
                               </div>
                               <div>
-                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>PRICE</div>
-                                {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
-                                : <div style={{ fontSize: '13px', fontWeight: 600 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>SQ FT</div>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>{item.width ? item.width + ' ft²' : '—'}</div>
                               </div>
                             </div>
-                            <div>
-                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
-                              {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Additional details..." style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
-                              : <div style={{ fontSize: '13px' }}>{item.description || '—'}</div>}
+                            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '10px' }}>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
+                                {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Additional details..." style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '13px' }}>{item.description || '—'}</div>}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>PRICE</div>
+                                {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                                : <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                              </div>
                             </div>
                           </div>
                         )}
