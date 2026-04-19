@@ -11,6 +11,7 @@ const SECTIONS = [
   { id: 'quotes', label: 'Quotes & Invoices', icon: '📄' },
   { id: 'imprint', label: 'Imprint Methods', icon: '🖨' },
   { id: 'production', label: 'Production Settings', icon: '⚙️' },
+  { id: 'pricing', label: 'Pricing Engine', icon: '💲' },
   { id: 'portal', label: 'Customer Portal', icon: '🔗' },
   { id: 'payments', label: 'Payments', icon: '💳' },
   { id: 'google', label: 'Google Workspace', icon: '🔗' },
@@ -692,6 +693,39 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* PRICING ENGINE */}
+              {activeSection === 'pricing' && (
+                <div>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>Pricing Engine</h2>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '20px' }}>Manage materials, kits, and vehicle database for auto-pricing quotes.</p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {[
+                      { label: '🎨 Materials', desc: 'Vinyl, laminate, substrates, ink', path: '/pricing' },
+                      { label: '📦 Kits', desc: 'Material combinations with pricing', path: '/pricing?tab=kits' },
+                      { label: '🚗 Vehicles', desc: 'Vehicle sq/ft database', path: '/pricing?tab=vehicles' },
+                    ].map(item => (
+                      <div key={item.label} onClick={() => router.push(item.path)} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px', cursor: 'pointer', flex: '1', minWidth: '180px' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.background = '#eff6ff'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = 'white'; }}
+                      >
+                        <div style={{ fontSize: '22px', marginBottom: '8px' }}>{item.label.split(' ')[0]}</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>{item.label.split(' ').slice(1).join(' ')}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{item.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: '16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>How it works</div>
+                    <div style={{ fontSize: '12px', color: '#b45309', lineHeight: 1.8 }}>
+                      1. Add your <strong>Materials</strong> (vinyl, laminate, substrate) with cost per sqft<br/>
+                      2. Build <strong>Kits</strong> by combining materials — set your margin and waste factor<br/>
+                      3. Add <strong>Vehicles</strong> with their square footage data<br/>
+                      4. When building a quote, select a vehicle + kit → price is calculated automatically
+                    </div>
+                  </div>
                 </div>
               )}
 

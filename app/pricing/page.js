@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
@@ -11,6 +11,7 @@ const UNITS = ['sqft', 'linear_ft', 'sheet', 'roll', 'each'];
 
 export default function PricingPage() {
   const [tab, setTab] = useState('materials');
+  const searchParams = useSearchParams();
   const [materials, setMaterials] = useState([]);
   const [kits, setKits] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -34,6 +35,11 @@ export default function PricingPage() {
   const [nhtsa, setNhtsa] = useState({ makes: [], models: [], loading: false });
 
   const router = useRouter();
+
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t) setTab(t);
+  }, [searchParams]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
