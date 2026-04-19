@@ -47,6 +47,8 @@ export default function QuoteDetailPage({ params }) {
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [imprintMethods, setImprintMethods] = useState(['Embroidery', 'Screen Printing', 'DTG', 'DTF', 'Heat Press', 'Vinyl', 'Sublimation']);
   const [staff, setStaff] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [allCustomers, setAllCustomers] = useState([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -63,10 +65,13 @@ export default function QuoteDetailPage({ params }) {
     setCustomer(quoteData.customers);
     const { data: itemsData } = await supabase.from('quote_items').select('*').eq('quote_id', id);
     setItems(itemsData || []);
-    if (!itemsData || itemsData.length === 0) setEditMode(true);
-    const { data: settingsData } = await supabase.from('settings').select('imprint_methods, tax_rate, deposit_percentage').single();
+    // Don't auto-enable edit mode
+    const { data: settingsData } = await supabase.from('settings').select('*').single();
     const { data: staffData } = await supabase.from('staff').select('*').eq('active', true);
+    const { data: customersData } = await supabase.from('customers').select('id, name, company, email, phone');
     if (staffData) setStaff(staffData);
+    if (settingsData) setSettings(settingsData);
+    if (customersData) setAllCustomers(customersData);
     if (settingsData?.imprint_methods?.length > 0) setImprintMethods(settingsData.imprint_methods);
     setLoading(false);
   }
@@ -112,6 +117,7 @@ export default function QuoteDetailPage({ params }) {
     setQuote({ ...quote, total });
     setSaving(false);
     setEditMode(false);
+    await fetchQuote();
   }
 
   async function updateQuoteField(field, value) {
@@ -167,19 +173,26 @@ export default function QuoteDetailPage({ params }) {
 
           {/* Top Bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
-              Back to Quotes
-            </button>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
+                Back to Quotes
+              </button>
+              <h1 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#111827' }}>
+                {settings?.quote_prefix || 'Q'}-{String(quote.quote_number || '').padStart(4, '0')}
+              </h1>
               <select
                 value={quote.status}
                 onChange={e => updateStatus(e.target.value)}
-                style={{ padding: '8px 12px', border: '1px solid', borderColor: sc.color, borderRadius: '7px', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', background: sc.bg, color: sc.color, cursor: 'pointer', outline: 'none' }}
+                style={{ padding: '6px 10px', border: '1px solid', borderColor: sc.color, borderRadius: '7px', fontSize: '12px', fontWeight: 700, fontFamily: 'inherit', background: sc.bg, color: sc.color, cursor: 'pointer', outline: 'none' }}
               >
                 {Object.keys(statusColors).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {!editMode ? (
-                <button onClick={() => setEditMode(true)} style={{ padding: '8px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Edit</button>
+                <button onClick={() => setEditMode(true)} style={{ padding: '8px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+                  Edit Quote
+                </button>
               ) : (
                 <button onClick={saveItems} disabled={saving} style={{ padding: '8px 14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
                   {saving ? 'Saving...' : 'Save Quote'}
@@ -197,10 +210,38 @@ export default function QuoteDetailPage({ params }) {
               {/* Customer */}
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Customer</div>
-                <div style={{ fontWeight: 700, fontSize: '14px' }}>{customer?.name}</div>
-                {customer?.company && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.company}</div>}
-                {customer?.email && <div style={{ fontSize: '12px', color: '#2563eb' }}>{customer.email}</div>}
-                {customer?.phone && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.phone}</div>}
+                {editMode ? (
+                  <div>
+                    <select
+                      value={quote.customer_id || ''}
+                      onChange={async e => {
+                        const cust = allCustomers.find(c => c.id === e.target.value);
+                        await supabase.from('quotes').update({ customer_id: e.target.value }).eq('id', id);
+                        setQuote({ ...quote, customer_id: e.target.value });
+                        setCustomer(cust || null);
+                      }}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', marginBottom: '6px' }}
+                    >
+                      <option value="">Select customer...</option>
+                      {allCustomers.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ' — ' + c.company : ''}</option>)}
+                    </select>
+                    {customer && (
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {customer.email && <div style={{ color: '#2563eb' }}>{customer.email}</div>}
+                        {customer.phone && <div>{customer.phone}</div>}
+                      </div>
+                    )}
+                  </div>
+                ) : customer ? (
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '2px' }}>{customer.name}</div>
+                    {customer.company && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.company}</div>}
+                    {customer.email && <div style={{ fontSize: '12px', color: '#2563eb' }}>{customer.email}</div>}
+                    {customer.phone && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.phone}</div>}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>No customer — click Edit to assign one</div>
+                )}
               </div>
 
               {/* Dates */}
