@@ -6,15 +6,46 @@ import { use } from 'react';
 import Sidebar from '../../components/Sidebar';
 import Topbar from '../../components/Topbar';
 
+const ITEM_TYPES = [
+  { id: 'apparel', label: 'Apparel', icon: '👕', desc: 'T-shirts, hoodies, hats, polos' },
+  { id: 'large_format', label: 'Large Format', icon: '🖼', desc: 'Banners, signs, backdrops' },
+  { id: 'vehicle_wrap', label: 'Vehicle Wrap', icon: '🚗', desc: 'Full wrap, partial, decals' },
+  { id: 'promo', label: 'Promo Product', icon: '📦', desc: 'Pens, bags, drinkware' },
+  { id: 'custom', label: 'Custom', icon: '✏️', desc: 'Anything else' },
+];
+
+const IMPRINT_LOCATIONS = ['Left Chest', 'Full Front', 'Full Back', 'Right Chest', 'Left Sleeve', 'Right Sleeve', 'Hood', 'Nape', 'Hat Front', 'Hat Side', 'Custom'];
+const WRAP_TYPES = ['Full Wrap', 'Partial Wrap', 'Decal', 'Perforated Window', 'Hood Wrap', 'Roof Wrap'];
+const GARMENT_STATUSES = ['Not Ordered', 'Ordered', 'In Transit', 'Received'];
+
+function newItem(type) {
+  return {
+    item_type: type,
+    description: '',
+    category: type,
+    brand: '',
+    style_number: '',
+    color: '',
+    size_xs: 0, size_s: 0, size_m: 0, size_l: 0, size_xl: 0, size_2xl: 0, size_3xl: 0, size_4xl: 0,
+    width: '', height: '', material: '',
+    vehicle_year: '', vehicle_make: '', vehicle_model: '', wrap_type: '',
+    quantity: 1, unit_price: 0, total: 0,
+    garment_status: 'Not Ordered', taxed: false,
+    imprint_method: '', imprint_location: '', imprint_colors: 1, imprint_notes: '',
+  };
+}
+
 export default function QuoteDetailPage({ params }) {
   const { id } = use(params);
   const [quote, setQuote] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [imprintMethods, setImprintMethods] = useState(['Embroidery', 'Screen Printing', 'DTG', 'DTF', 'Heat Press', 'Vinyl', 'Sublimation']);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,32 +56,35 @@ export default function QuoteDetailPage({ params }) {
   }, [id]);
 
   async function fetchQuote() {
-    const { data: quoteData } = await supabase
-      .from('quotes')
-      .select('*, customers(*)')
-      .eq('id', id)
-      .single();
+    const { data: quoteData } = await supabase.from('quotes').select('*, customers(*)').eq('id', id).single();
     if (!quoteData) { router.push('/quotes'); return; }
     setQuote(quoteData);
     setCustomer(quoteData.customers);
-    const { data: itemsData } = await supabase
-      .from('quote_items')
-      .select('*')
-      .eq('quote_id', id);
+    const { data: itemsData } = await supabase.from('quote_items').select('*').eq('quote_id', id);
     setItems(itemsData || []);
     if (!itemsData || itemsData.length === 0) setEditMode(true);
+    const { data: settingsData } = await supabase.from('settings').select('imprint_methods, tax_rate, deposit_percentage').single();
+    if (settingsData?.imprint_methods?.length > 0) setImprintMethods(settingsData.imprint_methods);
     setLoading(false);
   }
 
-  function addItem() {
-    setItems([...items, { description: '', category: '', quantity: 1, unit_price: 0, total: 0 }]);
+  function addItem(type) {
+    setItems([...items, newItem(type)]);
+    setShowTypeModal(false);
   }
 
   function updateItem(index, field, value) {
     const updated = [...items];
     updated[index][field] = value;
-    if (field === 'quantity' || field === 'unit_price') {
-      updated[index].total = parseFloat(updated[index].quantity) * parseFloat(updated[index].unit_price);
+    if (['size_xs','size_s','size_m','size_l','size_xl','size_2xl','size_3xl','size_4xl'].includes(field)) {
+      const sizes = ['size_xs','size_s','size_m','size_l','size_xl','size_2xl','size_3xl','size_4xl'];
+      const totalQty = sizes.reduce((s, k) => s + (parseInt(updated[index][k]) || 0), 0);
+      updated[index].quantity = totalQty;
+      updated[index].total = totalQty * (parseFloat(updated[index].unit_price) || 0);
+    } else if (field === 'unit_price') {
+      updated[index].total = (parseFloat(value) || 0) * (parseFloat(updated[index].quantity) || 0);
+    } else if (field === 'quantity') {
+      updated[index].total = (parseFloat(value) || 0) * (parseFloat(updated[index].unit_price) || 0);
     }
     setItems(updated);
   }
@@ -59,29 +93,27 @@ export default function QuoteDetailPage({ params }) {
     setItems(items.filter((_, i) => i !== index));
   }
 
-  function getTotal() {
-    return items.reduce((s, i) => s + (i.total || 0), 0);
-  }
+  function getSubtotal() { return items.reduce((s, i) => s + (parseFloat(i.total) || 0), 0); }
+  function getTaxAmount() { return items.filter(i => i.taxed).reduce((s, i) => s + (parseFloat(i.total) || 0), 0) * ((quote?.tax_rate || 0) / 100); }
+  function getTotal() { return getSubtotal() + (parseFloat(quote?.shipping_cost) || 0) - (parseFloat(quote?.discount) || 0) + getTaxAmount(); }
 
   async function saveItems() {
     setSaving(true);
     const total = getTotal();
     await supabase.from('quote_items').delete().eq('quote_id', id);
     if (items.length > 0) {
-      const newItems = items.map(item => ({
-        quote_id: id,
-        description: item.description,
-        category: item.category,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-      }));
+      const newItems = items.map(item => ({ ...item, quote_id: id }));
       await supabase.from('quote_items').insert(newItems);
     }
     await supabase.from('quotes').update({ total }).eq('id', id);
     setQuote({ ...quote, total });
     setSaving(false);
     setEditMode(false);
+  }
+
+  async function updateQuoteField(field, value) {
+    await supabase.from('quotes').update({ [field]: value }).eq('id', id);
+    setQuote({ ...quote, [field]: value });
   }
 
   async function updateStatus(status) {
@@ -96,18 +128,14 @@ export default function QuoteDetailPage({ params }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        quote: { ...quote, quote_number: `Q-${id.slice(0, 8).toUpperCase()}` },
+        quote: { ...quote, quote_number: 'Q-' + id.slice(0,8).toUpperCase() },
         customer,
         items,
       }),
     });
     const result = await res.json();
-    if (result.success) {
-      await updateStatus('Sent');
-      alert(`Quote sent to ${customer.email}!`);
-    } else {
-      alert('Error: ' + JSON.stringify(result.error));
-    }
+    if (result.success) { await updateStatus('Sent'); alert('Quote sent to ' + customer.email + '!'); }
+    else { alert('Error: ' + JSON.stringify(result.error)); }
     setSending(false);
   }
 
@@ -123,216 +151,512 @@ export default function QuoteDetailPage({ params }) {
 
   const sc = statusColors[quote.status] || statusColors['New Quote'];
   const isEditable = quote.status === 'New Quote';
+  const subtotal = getSubtotal();
+  const taxAmount = getTaxAmount();
+  const total = getTotal();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Topbar />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar />
-        <main style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', background: '#f8f9fb' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', background: '#f8f9fb' }}>
 
           {/* Top Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
             <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
-              ← Back to Quotes
+              Back to Quotes
             </button>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ background: sc.bg, color: sc.color, padding: '5px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: 700 }}>{quote.status}</span>
               {isEditable && !editMode && (
-                <button onClick={() => setEditMode(true)} style={{ padding: '8px 16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
-                  ✎ Edit Items
-                </button>
+                <button onClick={() => setEditMode(true)} style={{ padding: '8px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Edit</button>
               )}
               {editMode && (
-                <button
-                  onClick={saveItems}
-                  disabled={saving}
-                  style={{ padding: '8px 16px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}
-                >
-                  {saving ? 'Saving...' : '💾 Save Quote'}
+                <button onClick={saveItems} disabled={saving} style={{ padding: '8px 14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+                  {saving ? 'Saving...' : 'Save Quote'}
                 </button>
               )}
-              <button
-                onClick={sendQuote}
-                disabled={sending || items.length === 0}
-                style={{ padding: '8px 16px', background: sending || items.length === 0 ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}
-              >
-                {sending ? 'Sending...' : '✉ Send to Customer'}
+              <button onClick={sendQuote} disabled={sending || items.length === 0} style={{ padding: '8px 14px', background: sending || items.length === 0 ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+                {sending ? 'Sending...' : 'Send to Customer'}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px' }}>
+          {/* Quote Header — condensed */}
+          <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+              {/* Customer */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Customer</div>
+                <div style={{ fontWeight: 700, fontSize: '14px' }}>{customer?.name}</div>
+                {customer?.company && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.company}</div>}
+                {customer?.email && <div style={{ fontSize: '12px', color: '#2563eb' }}>{customer.email}</div>}
+                {customer?.phone && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.phone}</div>}
+              </div>
 
-            {/* Main */}
-            <div>
-              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '24px', marginBottom: '16px' }}>
-
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <div>
-                    <h1 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '4px' }}>Quote Detail</h1>
-                    <div style={{ fontSize: '13px', color: '#6b7280' }}>Created {new Date(quote.created_at).toLocaleDateString()}</div>
+              {/* Dates */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Dates</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Created:</span>
+                    <span>{new Date(quote.created_at).toLocaleDateString()}</span>
                   </div>
-                  <span style={{ background: sc.bg, color: sc.color, padding: '6px 14px', borderRadius: '100px', fontSize: '13px', fontWeight: 700 }}>{quote.status}</span>
-                </div>
-
-                {/* Customer */}
-                {customer && (
-                  <div style={{ background: '#f8f9fb', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Customer</div>
-                    <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '2px' }}>{customer.name}</div>
-                    {customer.company && <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '2px' }}>{customer.company}</div>}
-                    {customer.email && <div style={{ fontSize: '13px', color: '#2563eb' }}>{customer.email}</div>}
-                    {customer.phone && <div style={{ fontSize: '13px', color: '#6b7280' }}>{customer.phone}</div>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Payment Due:</span>
+                    {editMode ? (
+                      <input type="date" value={quote.due_date || ''} onChange={e => updateQuoteField('due_date', e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit' }} />
+                    ) : <span>{quote.due_date || '—'}</span>}
                   </div>
-                )}
-
-                {/* Line Items */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Line Items</div>
-                    {editMode && (
-                      <button onClick={addItem} style={{ padding: '5px 12px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add Item</button>
-                    )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Production Due:</span>
+                    {editMode ? (
+                      <input type="date" value={quote.production_due_date || ''} onChange={e => updateQuoteField('production_due_date', e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit' }} />
+                    ) : <span>{quote.production_due_date || '—'}</span>}
                   </div>
-
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px' }}>
-                    <thead>
-                      <tr style={{ background: '#f8f9fb' }}>
-                        {['Description', 'Category', 'Qty', 'Unit Price', 'Total', editMode ? '' : null].filter(Boolean).map(h => (
-                          <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#6b7280', border: '1px solid #e5e7eb' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.length === 0 && (
-                        <tr>
-                          <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
-                            {editMode ? 'Click "+ Add Item" to start building your quote' : 'No line items yet'}
-                          </td>
-                        </tr>
-                      )}
-                      {items.map((item, idx) => (
-                        <tr key={idx}>
-                          <td style={{ border: '1px solid #e5e7eb', padding: editMode ? '4px' : '10px 12px', fontSize: '13px' }}>
-                            {editMode ? (
-                              <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Item description" style={{ width: '100%', border: 'none', padding: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
-                            ) : item.description}
-                          </td>
-                          <td style={{ border: '1px solid #e5e7eb', padding: editMode ? '4px' : '10px 12px', fontSize: '13px', color: '#6b7280' }}>
-                            {editMode ? (
-                              <input value={item.category} onChange={e => updateItem(idx, 'category', e.target.value)} placeholder="e.g. T-Shirts" style={{ width: '100%', border: 'none', padding: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
-                            ) : item.category}
-                          </td>
-                          <td style={{ border: '1px solid #e5e7eb', padding: editMode ? '4px' : '10px 12px', fontSize: '13px', textAlign: 'center', width: '70px' }}>
-                            {editMode ? (
-                              <input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)} style={{ width: '100%', border: 'none', padding: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', textAlign: 'center' }} />
-                            ) : item.quantity}
-                          </td>
-                          <td style={{ border: '1px solid #e5e7eb', padding: editMode ? '4px' : '10px 12px', fontSize: '13px', textAlign: 'right', width: '100px' }}>
-                            {editMode ? (
-                              <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', border: 'none', padding: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', textAlign: 'center' }} />
-                            ) : '$' + parseFloat(item.unit_price).toFixed(2)}
-                          </td>
-                          <td style={{ border: '1px solid #e5e7eb', padding: '10px 12px', fontSize: '13px', textAlign: 'right', fontWeight: 600, width: '90px' }}>
-                            ${(item.total || 0).toFixed(2)}
-                          </td>
-                          {editMode && (
-                            <td style={{ border: '1px solid #e5e7eb', padding: '4px', width: '30px', textAlign: 'center' }}>
-                              <span onClick={() => removeItem(idx)} style={{ cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '18px' }}>×</span>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <div style={{ background: '#111827', color: 'white', borderRadius: '8px', padding: '16px 24px', textAlign: 'right' }}>
-                      <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px' }}>Quote Total</div>
-                      <div style={{ fontSize: '28px', fontWeight: 700 }}>${editMode ? getTotal().toFixed(2) : (quote.total || 0).toFixed(2)}</div>
-                    </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Customer Due:</span>
+                    {editMode ? (
+                      <input type="date" value={quote.customer_due_date || ''} onChange={e => updateQuoteField('customer_due_date', e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit' }} />
+                    ) : <span>{quote.customer_due_date || '—'}</span>}
                   </div>
                 </div>
+              </div>
 
-                {/* Notes */}
-                {quote.notes && (
-                  <div style={{ marginTop: '20px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '14px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', marginBottom: '6px', textTransform: 'uppercase' }}>Notes</div>
-                    <div style={{ fontSize: '13px', color: '#78350f' }}>{quote.notes}</div>
+              {/* Sales Rep + Status */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Details</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Sales Rep:</span>
+                    {editMode ? (
+                      <input value={quote.sales_rep || ''} onChange={e => updateQuoteField('sales_rep', e.target.value)} placeholder="Rep name" style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 6px', fontFamily: 'inherit', width: '100px' }} />
+                    ) : <span>{quote.sales_rep || '—'}</span>}
                   </div>
-                )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Status:</span>
+                    {editMode ? (
+                      <select value={quote.status} onChange={e => updateStatus(e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit' }}>
+                        {Object.keys(statusColors).map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    ) : <span style={{ background: sc.bg, color: sc.color, padding: '1px 8px', borderRadius: '100px', fontSize: '11px', fontWeight: 600 }}>{quote.status}</span>}
+                  </div>
+                </div>
+              </div>
 
-                {/* Rejection */}
-                {quote.rejection_reason && (
-                  <div style={{ marginTop: '16px', background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px', padding: '14px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#b91c1c', marginBottom: '6px', textTransform: 'uppercase' }}>Rejection Reason</div>
-                    <div style={{ fontSize: '13px', color: '#7f1d1d' }}>{quote.rejection_reason}</div>
+              {/* Financials */}
+              <div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Summary</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Subtotal:</span>
+                    <span>${subtotal.toFixed(2)}</span>
                   </div>
-                )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Shipping:</span>
+                    {editMode ? (
+                      <input type="number" value={quote.shipping_cost || 0} onChange={e => updateQuoteField('shipping_cost', parseFloat(e.target.value) || 0)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit', width: '70px', textAlign: 'right' }} />
+                    ) : <span>${(quote.shipping_cost || 0).toFixed(2)}</span>}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <span style={{ color: '#6b7280' }}>Discount:</span>
+                    {editMode ? (
+                      <input type="number" value={quote.discount || 0} onChange={e => updateQuoteField('discount', parseFloat(e.target.value) || 0)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit', width: '70px', textAlign: 'right' }} />
+                    ) : <span>-${(quote.discount || 0).toFixed(2)}</span>}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', paddingTop: '4px', borderTop: '1px solid #f3f4f6', fontWeight: 700 }}>
+                    <span>Total:</span>
+                    <span style={{ color: '#111827', fontSize: '14px' }}>${total.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Right Sidebar */}
-            <div>
-              {/* Status */}
-              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '10px', textTransform: 'uppercase' }}>Update Status</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {['New Quote', 'Sent', 'Accepted', 'Ordered', 'Cancelled'].map(s => {
-                    const c = statusColors[s] || statusColors['New Quote'];
-                    return (
-                      <button key={s} onClick={() => updateStatus(s)} style={{ padding: '8px 12px', background: quote.status === s ? c.bg : '#f9fafb', color: quote.status === s ? c.color : '#6b7280', border: `1px solid ${quote.status === s ? c.color : '#e5e7eb'}`, borderRadius: '6px', fontSize: '13px', fontWeight: quote.status === s ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-                        {quote.status === s ? '● ' : '○ '}{s}
-                      </button>
-                    );
-                  })}
+          {/* Line Items */}
+          <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700 }}>Quote Items</div>
+              {editMode && (
+                <button onClick={() => setShowTypeModal(true)} style={{ padding: '7px 14px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  + Add Item
+                </button>
+              )}
+            </div>
+
+            {items.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📋</div>
+                <div style={{ fontSize: '14px' }}>No items yet — click Add Item to get started</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {items.map((item, idx) => (
+                  <div key={idx} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+                    {/* Item Header */}
+                    <div style={{ background: '#f8f9fb', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e7eb' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>{ITEM_TYPES.find(t => t.id === item.item_type)?.icon || '📦'}</span>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151' }}>{ITEM_TYPES.find(t => t.id === item.item_type)?.label || 'Item'} {idx + 1}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#111827', marginLeft: '8px' }}>${(item.total || 0).toFixed(2)}</span>
+                      </div>
+                      {editMode && (
+                        <span onClick={() => removeItem(idx)} style={{ cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: '18px' }}>x</span>
+                      )}
+                    </div>
+
+                    <div style={{ padding: '14px' }}>
+                      {/* APPAREL */}
+                      {item.item_type === 'apparel' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
+                              {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Product name" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.description || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>STYLE #</div>
+                              {editMode ? <input value={item.style_number} onChange={e => updateItem(idx, 'style_number', e.target.value)} placeholder="e.g. 64000" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.style_number || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>COLOR</div>
+                              {editMode ? <input value={item.color} onChange={e => updateItem(idx, 'color', e.target.value)} placeholder="e.g. Navy" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.color || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>UNIT PRICE</div>
+                              {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                            </div>
+                          </div>
+
+                          {/* Size Grid */}
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '6px' }}>SIZES</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px' }}>
+                              {['xs','s','m','l','xl','2xl','3xl','4xl'].map(size => (
+                                <div key={size} style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', marginBottom: '3px', textTransform: 'uppercase' }}>{size}</div>
+                                  {editMode ? (
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={item['size_' + size] || 0}
+                                      onChange={e => updateItem(idx, 'size_' + size, parseInt(e.target.value) || 0)}
+                                      style={{ width: '100%', padding: '5px 2px', border: '1px solid #e5e7eb', borderRadius: '5px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', textAlign: 'center' }}
+                                    />
+                                  ) : (
+                                    <div style={{ padding: '5px', background: item['size_' + size] > 0 ? '#eff6ff' : '#f9fafb', border: '1px solid', borderColor: item['size_' + size] > 0 ? '#bfdbfe' : '#e5e7eb', borderRadius: '5px', fontSize: '13px', fontWeight: item['size_' + size] > 0 ? 700 : 400, color: item['size_' + size] > 0 ? '#1d4ed8' : '#9ca3af' }}>
+                                      {item['size_' + size] || 0}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>TOTAL QTY</div>
+                              <div style={{ fontSize: '14px', fontWeight: 700 }}>{item.quantity || 0}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>GARMENT STATUS</div>
+                              {editMode ? (
+                                <select value={item.garment_status} onChange={e => updateItem(idx, 'garment_status', e.target.value)} style={{ width: '100%', padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                  {GARMENT_STATUSES.map(s => <option key={s}>{s}</option>)}
+                                </select>
+                              ) : <span style={{ fontSize: '12px', background: '#f3f4f6', padding: '3px 8px', borderRadius: '100px' }}>{item.garment_status}</span>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px' }}>
+                              <input type="checkbox" checked={item.taxed} onChange={e => updateItem(idx, 'taxed', e.target.checked)} disabled={!editMode} style={{ width: '14px', height: '14px' }} />
+                              <span style={{ fontSize: '12px', color: '#374151' }}>Taxed</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* LARGE FORMAT */}
+                      {item.item_type === 'large_format' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
+                              {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="e.g. 4x8 Banner" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.description || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>WIDTH (ft)</div>
+                              {editMode ? <input type="number" value={item.width || ''} onChange={e => updateItem(idx, 'width', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.width || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>HEIGHT (ft)</div>
+                              {editMode ? <input type="number" value={item.height || ''} onChange={e => updateItem(idx, 'height', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.height || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>QTY</div>
+                              {editMode ? <input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.quantity}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>UNIT PRICE</div>
+                              {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>MATERIAL/SUBSTRATE</div>
+                              {editMode ? <input value={item.material || ''} onChange={e => updateItem(idx, 'material', e.target.value)} placeholder="e.g. 13oz Vinyl, Coroplast" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.material || '—'}</div>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '16px' }}>
+                              <input type="checkbox" checked={item.taxed} onChange={e => updateItem(idx, 'taxed', e.target.checked)} disabled={!editMode} style={{ width: '14px', height: '14px' }} />
+                              <span style={{ fontSize: '12px', color: '#374151' }}>Taxed</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* VEHICLE WRAP */}
+                      {item.item_type === 'vehicle_wrap' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>YEAR</div>
+                              {editMode ? <input value={item.vehicle_year || ''} onChange={e => updateItem(idx, 'vehicle_year', e.target.value)} placeholder="2024" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.vehicle_year || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>MAKE</div>
+                              {editMode ? <input value={item.vehicle_make || ''} onChange={e => updateItem(idx, 'vehicle_make', e.target.value)} placeholder="Ford" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.vehicle_make || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>MODEL</div>
+                              {editMode ? <input value={item.vehicle_model || ''} onChange={e => updateItem(idx, 'vehicle_model', e.target.value)} placeholder="F-150" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.vehicle_model || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>WRAP TYPE</div>
+                              {editMode ? (
+                                <select value={item.wrap_type || ''} onChange={e => updateItem(idx, 'wrap_type', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                  <option value="">Select...</option>
+                                  {WRAP_TYPES.map(w => <option key={w}>{w}</option>)}
+                                </select>
+                              ) : <div style={{ fontSize: '13px' }}>{item.wrap_type || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>PRICE</div>
+                              {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION / NOTES</div>
+                            {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Additional details..." style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                            : <div style={{ fontSize: '13px' }}>{item.description || '—'}</div>}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* PROMO PRODUCT */}
+                      {item.item_type === 'promo' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
+                              {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="e.g. Custom Tote Bag" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.description || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>STYLE #</div>
+                              {editMode ? <input value={item.style_number || ''} onChange={e => updateItem(idx, 'style_number', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.style_number || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>COLOR</div>
+                              {editMode ? <input value={item.color || ''} onChange={e => updateItem(idx, 'color', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.color || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>QTY</div>
+                              {editMode ? <input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.quantity}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>UNIT PRICE</div>
+                              {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input type="checkbox" checked={item.taxed} onChange={e => updateItem(idx, 'taxed', e.target.checked)} disabled={!editMode} style={{ width: '14px', height: '14px' }} />
+                            <span style={{ fontSize: '12px', color: '#374151' }}>Taxed</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CUSTOM */}
+                      {item.item_type === 'custom' && (
+                        <div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>DESCRIPTION</div>
+                              {editMode ? <input value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Item description" style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>{item.description || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>QTY</div>
+                              {editMode ? <input type="number" value={item.quantity} onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.quantity}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>UNIT PRICE</div>
+                              {editMode ? <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px', fontWeight: 600 }}>${parseFloat(item.unit_price || 0).toFixed(2)}</div>}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <input type="checkbox" checked={item.taxed} onChange={e => updateItem(idx, 'taxed', e.target.checked)} disabled={!editMode} style={{ width: '14px', height: '14px' }} />
+                            <span style={{ fontSize: '12px', color: '#374151' }}>Taxed</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Imprint Details — shown for apparel, promo, custom */}
+                      {['apparel', 'promo', 'custom'].includes(item.item_type) && (
+                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f3f4f6' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase' }}>Imprint Details</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px' }}>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>METHOD</div>
+                              {editMode ? (
+                                <select value={item.imprint_method || ''} onChange={e => updateItem(idx, 'imprint_method', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                  <option value="">Select...</option>
+                                  {imprintMethods.map(m => <option key={m}>{m}</option>)}
+                                </select>
+                              ) : <div style={{ fontSize: '13px' }}>{item.imprint_method || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>LOCATION</div>
+                              {editMode ? (
+                                <select value={item.imprint_location || ''} onChange={e => updateItem(idx, 'imprint_location', e.target.value)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                  <option value="">Select...</option>
+                                  {IMPRINT_LOCATIONS.map(l => <option key={l}>{l}</option>)}
+                                </select>
+                              ) : <div style={{ fontSize: '13px' }}>{item.imprint_location || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>COLORS/THREADS</div>
+                              {editMode ? <input type="number" min="1" value={item.imprint_colors || 1} onChange={e => updateItem(idx, 'imprint_colors', parseInt(e.target.value) || 1)} style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.imprint_colors || '—'}</div>}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>NOTES</div>
+                              {editMode ? <input value={item.imprint_notes || ''} onChange={e => updateItem(idx, 'imprint_notes', e.target.value)} placeholder="Additional notes..." style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                              : <div style={{ fontSize: '13px' }}>{item.imprint_notes || '—'}</div>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Order Summary */}
+            {items.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <div style={{ width: '280px', background: '#f8f9fb', borderRadius: '8px', padding: '16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '10px' }}>ORDER SUMMARY</div>
+                  {[
+                    ['Item Total', '$' + subtotal.toFixed(2)],
+                    ['Shipping', '$' + (parseFloat(quote.shipping_cost) || 0).toFixed(2)],
+                    ['Discount', '-$' + (parseFloat(quote.discount) || 0).toFixed(2)],
+                    ['Sales Tax', '$' + taxAmount.toFixed(2)],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', padding: '5px 0', borderBottom: '1px solid #e5e7eb' }}>
+                      <span style={{ color: '#6b7280' }}>{label}</span>
+                      <span>{value}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700, padding: '10px 0 0' }}>
+                    <span>Order Total</span>
+                    <span style={{ color: '#111827' }}>${total.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
 
-              {/* Details */}
-              <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '10px', textTransform: 'uppercase' }}>Details</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Due Date</span>
-                    <span style={{ fontWeight: 500 }}>{quote.due_date || '—'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Created</span>
-                    <span style={{ fontWeight: 500 }}>{new Date(quote.created_at).toLocaleDateString()}</span>
-                  </div>
-                  {quote.approved_at && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#6b7280' }}>Approved</span>
-                      <span style={{ fontWeight: 500, color: '#16a34a' }}>{new Date(quote.approved_at).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  {quote.rejected_at && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#6b7280' }}>Rejected</span>
-                      <span style={{ fontWeight: 500, color: '#dc2626' }}>{new Date(quote.rejected_at).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Portal Link */}
-              {customer?.portal_token && (
-                <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '10px', textTransform: 'uppercase' }}>Customer Portal</div>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/portal/${customer.portal_token}`); alert('Portal link copied!'); }}
-                    style={{ width: '100%', padding: '8px', background: '#f8f9fb', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}
-                  >
-                    🔗 Copy Customer Portal Link
-                  </button>
-                </div>
+          {/* Notes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '8px' }}>CUSTOMER NOTES</div>
+              {editMode ? (
+                <textarea value={quote.customer_notes || ''} onChange={e => updateQuoteField('customer_notes', e.target.value)} rows={3} placeholder="Notes visible to customer..." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
+              ) : (
+                <div style={{ fontSize: '13px', color: '#6b7280' }}>{quote.customer_notes || 'No customer notes'}</div>
+              )}
+            </div>
+            <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '8px' }}>PRODUCTION NOTES</div>
+              {editMode ? (
+                <textarea value={quote.production_notes || ''} onChange={e => updateQuoteField('production_notes', e.target.value)} rows={3} placeholder="Internal production notes..." style={{ width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
+              ) : (
+                <div style={{ fontSize: '13px', color: '#6b7280' }}>{quote.production_notes || 'No production notes'}</div>
               )}
             </div>
           </div>
+
+          {/* Portal Link */}
+          {customer?.portal_token && (
+            <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '13px', color: '#374151', fontWeight: 500 }}>Customer Portal Link</div>
+              <button onClick={() => { navigator.clipboard.writeText(window.location.origin + '/portal/' + customer.portal_token); alert('Portal link copied!'); }} style={{ padding: '6px 14px', background: '#f8f9fb', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', color: '#374151' }}>
+                Copy Link
+              </button>
+            </div>
+          )}
+
         </main>
       </div>
+
+      {/* ITEM TYPE MODAL */}
+      {showTypeModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '12px', width: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>What type of item?</h2>
+              <span onClick={() => setShowTypeModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#6b7280', lineHeight: 1 }}>x</span>
+            </div>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {ITEM_TYPES.map(type => (
+                <button
+                  key={type.id}
+                  onClick={() => addItem(type.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', background: '#f8f9fb', border: '1px solid #e5e7eb', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', transition: 'all .15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#2563eb'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.borderColor = '#e5e7eb'; }}
+                >
+                  <span style={{ fontSize: '28px' }}>{type.icon}</span>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '2px' }}>{type.label}</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280' }}>{type.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
