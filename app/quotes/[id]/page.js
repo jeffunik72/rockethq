@@ -46,6 +46,7 @@ export default function QuoteDetailPage({ params }) {
   const [editMode, setEditMode] = useState(false);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [imprintMethods, setImprintMethods] = useState(['Embroidery', 'Screen Printing', 'DTG', 'DTF', 'Heat Press', 'Vinyl', 'Sublimation']);
+  const [staff, setStaff] = useState([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -64,6 +65,8 @@ export default function QuoteDetailPage({ params }) {
     setItems(itemsData || []);
     if (!itemsData || itemsData.length === 0) setEditMode(true);
     const { data: settingsData } = await supabase.from('settings').select('imprint_methods, tax_rate, deposit_percentage').single();
+    const { data: staffData } = await supabase.from('staff').select('*').eq('active', true);
+    if (staffData) setStaff(staffData);
     if (settingsData?.imprint_methods?.length > 0) setImprintMethods(settingsData.imprint_methods);
     setLoading(false);
   }
@@ -164,15 +167,26 @@ export default function QuoteDetailPage({ params }) {
 
           {/* Top Bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
-              Back to Quotes
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
+                Back to Quotes
+              </button>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {Object.keys(statusColors).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => updateStatus(s)}
+                    style={{ padding: '5px 12px', background: quote.status === s ? statusColors[s].bg : 'white', color: quote.status === s ? statusColors[s].color : '#9ca3af', border: '1px solid', borderColor: quote.status === s ? statusColors[s].color : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ background: sc.bg, color: sc.color, padding: '5px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: 700 }}>{quote.status}</span>
-              {isEditable && !editMode && (
+              {!editMode ? (
                 <button onClick={() => setEditMode(true)} style={{ padding: '8px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Edit</button>
-              )}
-              {editMode && (
+              ) : (
                 <button onClick={saveItems} disabled={saving} style={{ padding: '8px 14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
                   {saving ? 'Saving...' : 'Save Quote'}
                 </button>
@@ -231,7 +245,10 @@ export default function QuoteDetailPage({ params }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                     <span style={{ color: '#6b7280' }}>Sales Rep:</span>
                     {editMode ? (
-                      <input value={quote.sales_rep || ''} onChange={e => updateQuoteField('sales_rep', e.target.value)} placeholder="Rep name" style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 6px', fontFamily: 'inherit', width: '100px' }} />
+                      <select value={quote.sales_rep || ''} onChange={e => updateQuoteField('sales_rep', e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit', maxWidth: '120px' }}>
+                        <option value="">Select rep...</option>
+                        {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      </select>
                     ) : <span>{quote.sales_rep || '—'}</span>}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
@@ -245,16 +262,12 @@ export default function QuoteDetailPage({ params }) {
                 </div>
               </div>
 
-              {/* Financials */}
+              {/* Shipping */}
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Summary</div>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Shipping</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                    <span style={{ color: '#6b7280' }}>Subtotal:</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                    <span style={{ color: '#6b7280' }}>Shipping:</span>
+                    <span style={{ color: '#6b7280' }}>Shipping Cost:</span>
                     {editMode ? (
                       <input type="number" value={quote.shipping_cost || 0} onChange={e => updateQuoteField('shipping_cost', parseFloat(e.target.value) || 0)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit', width: '70px', textAlign: 'right' }} />
                     ) : <span>${(quote.shipping_cost || 0).toFixed(2)}</span>}
@@ -265,9 +278,8 @@ export default function QuoteDetailPage({ params }) {
                       <input type="number" value={quote.discount || 0} onChange={e => updateQuoteField('discount', parseFloat(e.target.value) || 0)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit', width: '70px', textAlign: 'right' }} />
                     ) : <span>-${(quote.discount || 0).toFixed(2)}</span>}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', paddingTop: '4px', borderTop: '1px solid #f3f4f6', fontWeight: 700 }}>
-                    <span>Total:</span>
-                    <span style={{ color: '#111827', fontSize: '14px' }}>${total.toFixed(2)}</span>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px', fontStyle: 'italic' }}>
+                    Tracking info coming soon
                   </div>
                 </div>
               </div>
