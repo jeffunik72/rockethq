@@ -26,7 +26,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (!checking) fetchProducts();
-  }, [page, brand]);
+  }, [page, brand, checking]);
 
   async function fetchProducts() {
     setLoading(true);
