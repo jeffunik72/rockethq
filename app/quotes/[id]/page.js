@@ -49,6 +49,10 @@ export default function QuoteDetailPage({ params }) {
   const [staff, setStaff] = useState([]);
   const [settings, setSettings] = useState(null);
   const [allCustomers, setAllCustomers] = useState([]);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({ name: '', company: '', email: '', phone: '', address: '', city: '', state: '', zip: '' });
   const router = useRouter();
 
   useEffect(() => {
@@ -74,6 +78,31 @@ export default function QuoteDetailPage({ params }) {
     if (customersData) setAllCustomers(customersData);
     if (settingsData?.imprint_methods?.length > 0) setImprintMethods(settingsData.imprint_methods);
     setLoading(false);
+  }
+
+  async function createCustomer() {
+    if (!newCustomerForm.name) { alert('Name is required'); return; }
+    const token = crypto.randomUUID();
+    const { data: cust, error } = await supabase.from('customers').insert([{
+      ...newCustomerForm,
+      portal_token: token,
+      portal_enabled: true,
+    }]).select().single();
+    if (error) { alert('Error: ' + error.message); return; }
+    await supabase.from('quotes').update({ customer_id: cust.id }).eq('id', id);
+    setCustomer(cust);
+    setQuote({ ...quote, customer_id: cust.id });
+    setAllCustomers([...allCustomers, cust]);
+    setShowCustomerModal(false);
+    setNewCustomerForm({ name: '', company: '', email: '', phone: '', address: '', city: '', state: '', zip: '' });
+  }
+
+  async function assignCustomer(cust) {
+    await supabase.from('quotes').update({ customer_id: cust.id }).eq('id', id);
+    setCustomer(cust);
+    setQuote({ ...quote, customer_id: cust.id });
+    setShowCustomerSearch(false);
+    setCustomerSearch('');
   }
 
   function addItem(type) {
@@ -212,23 +241,52 @@ export default function QuoteDetailPage({ params }) {
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Customer</div>
                 {editMode ? (
                   <div>
-                    <select
-                      value={quote.customer_id || ''}
-                      onChange={async e => {
-                        const cust = allCustomers.find(c => c.id === e.target.value);
-                        await supabase.from('quotes').update({ customer_id: e.target.value }).eq('id', id);
-                        setQuote({ ...quote, customer_id: e.target.value });
-                        setCustomer(cust || null);
-                      }}
-                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none', marginBottom: '6px' }}
-                    >
-                      <option value="">Select customer...</option>
-                      {allCustomers.map(c => <option key={c.id} value={c.id}>{c.name}{c.company ? ' — ' + c.company : ''}</option>)}
-                    </select>
-                    {customer && (
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {customer.email && <div style={{ color: '#2563eb' }}>{customer.email}</div>}
-                        {customer.phone && <div>{customer.phone}</div>}
+                    {customer ? (
+                      <div style={{ marginBottom: '8px' }}>
+                        <div style={{ fontWeight: 700, fontSize: '13px' }}>{customer.name}</div>
+                        {customer.company && <div style={{ fontSize: '12px', color: '#6b7280' }}>{customer.company}</div>}
+                        {customer.email && <div style={{ fontSize: '12px', color: '#2563eb' }}>{customer.email}</div>}
+                        <button onClick={() => setCustomer(null)} style={{ fontSize: '11px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontFamily: 'inherit' }}>Change customer</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <button
+                          onClick={() => setShowCustomerSearch(true)}
+                          style={{ padding: '7px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#2563eb', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                        >
+                          Search Existing Customer
+                        </button>
+                        <button
+                          onClick={() => setShowCustomerModal(true)}
+                          style={{ padding: '7px 10px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#16a34a', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
+                        >
+                          + Create New Customer
+                        </button>
+                      </div>
+                    )}
+                    {showCustomerSearch && (
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          autoFocus
+                          value={customerSearch}
+                          onChange={e => setCustomerSearch(e.target.value)}
+                          placeholder="Search by name or company..."
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #2563eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit', outline: 'none' }}
+                        />
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '200px', overflowY: 'auto' }}>
+                          {allCustomers.filter(c => 
+                            c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
+                            (c.company && c.company.toLowerCase().includes(customerSearch.toLowerCase()))
+                          ).map(c => (
+                            <div key={c.id} onClick={() => assignCustomer(c)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                              <div style={{ fontWeight: 600 }}>{c.name}</div>
+                              {c.company && <div style={{ fontSize: '11px', color: '#6b7280' }}>{c.company}</div>}
+                            </div>
+                          ))}
+                          {allCustomers.filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase())).length === 0 && (
+                            <div style={{ padding: '12px', fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>No customers found</div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -668,6 +726,62 @@ export default function QuoteDetailPage({ params }) {
 
         </main>
       </div>
+
+      {/* NEW CUSTOMER MODAL */}
+      {showCustomerModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px' }}>
+          <div style={{ background: 'white', borderRadius: '12px', width: '520px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e5e7eb' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>New Customer</h2>
+              <span onClick={() => setShowCustomerModal(false)} style={{ cursor: 'pointer', fontSize: '24px', color: '#6b7280', lineHeight: 1 }}>x</span>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Full Name *</label>
+                  <input value={newCustomerForm.name} onChange={e => setNewCustomerForm({...newCustomerForm, name: e.target.value})} placeholder="Jane Smith" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Company</label>
+                  <input value={newCustomerForm.company} onChange={e => setNewCustomerForm({...newCustomerForm, company: e.target.value})} placeholder="Acme Co." style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Email</label>
+                  <input type="email" value={newCustomerForm.email} onChange={e => setNewCustomerForm({...newCustomerForm, email: e.target.value})} placeholder="jane@example.com" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Phone</label>
+                  <input value={newCustomerForm.phone} onChange={e => setNewCustomerForm({...newCustomerForm, phone: e.target.value})} placeholder="(615) 000-0000" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Address</label>
+                <input value={newCustomerForm.address} onChange={e => setNewCustomerForm({...newCustomerForm, address: e.target.value})} placeholder="123 Main St" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>City</label>
+                  <input value={newCustomerForm.city} onChange={e => setNewCustomerForm({...newCustomerForm, city: e.target.value})} placeholder="Nashville" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>State</label>
+                  <input value={newCustomerForm.state} onChange={e => setNewCustomerForm({...newCustomerForm, state: e.target.value})} placeholder="TN" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>ZIP</label>
+                  <input value={newCustomerForm.zip} onChange={e => setNewCustomerForm({...newCustomerForm, zip: e.target.value})} placeholder="37188" style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '8px' }}>
+                <button onClick={() => setShowCustomerModal(false)} style={{ padding: '8px 16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Cancel</button>
+                <button onClick={createCustomer} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Create Customer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ITEM TYPE MODAL */}
       {showTypeModal && (
