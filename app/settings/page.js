@@ -10,6 +10,7 @@ const SECTIONS = [
   { id: 'company', label: 'Company Info', icon: '🏢' },
   { id: 'quotes', label: 'Quotes & Invoices', icon: '📄' },
   { id: 'imprint', label: 'Imprint Methods', icon: '🖨' },
+  { id: 'production', label: 'Production Stages', icon: '⚙️' },
   { id: 'portal', label: 'Customer Portal', icon: '🔗' },
   { id: 'payments', label: 'Payments', icon: '💳' },
   { id: 'google', label: 'Google Workspace', icon: '🔗' },
@@ -373,6 +374,72 @@ export default function SettingsPage() {
                     <a href="https://dashboard.stripe.com" target="_blank" rel="noreferrer" style={{ display: 'inline-block', padding: '8px 16px', background: '#f59e0b', color: 'white', borderRadius: '6px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
                       Activate Stripe Account
                     </a>
+                  </div>
+                </div>
+              )}
+
+              {/* PRODUCTION STAGES */}
+              {activeSection === 'production' && (
+                <div>
+                  <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>Production Stages</h2>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '24px' }}>Customize the stages jobs move through on your production board.</p>
+
+                  <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '16px' }}>Current Stages</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                      {(settings.production_stages || []).map((stage, idx) => {
+                        const color = (settings.production_stage_colors || {})[stage] || '#6b7280';
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: '#f8f9fb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                            <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontSize: '13px', fontWeight: 600 }}>{stage}</span>
+                            <input type="color" value={color} onChange={async e => {
+                              const newColors = { ...(settings.production_stage_colors || {}), [stage]: e.target.value };
+                              await supabase.from('settings').update({ production_stage_colors: newColors }).eq('id', settings.id);
+                              setSettings({ ...settings, production_stage_colors: newColors });
+                            }} style={{ width: '32px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', cursor: 'pointer', padding: '2px' }} />
+                            <button onClick={async () => {
+                              if (!confirm('Remove this stage?')) return;
+                              const newStages = (settings.production_stages || []).filter((_, i) => i !== idx);
+                              const newColors = { ...(settings.production_stage_colors || {}) };
+                              delete newColors[stage];
+                              await supabase.from('settings').update({ production_stages: newStages, production_stage_colors: newColors }).eq('id', settings.id);
+                              setSettings({ ...settings, production_stages: newStages, production_stage_colors: newColors });
+                            }} style={{ fontSize: '12px', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Remove</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Add new stage */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        id="newStageInput"
+                        placeholder="New stage name..."
+                        style={{ flex: 1, padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', fontFamily: 'inherit', outline: 'none' }}
+                      />
+                      <button onClick={async () => {
+                        const input = document.getElementById('newStageInput');
+                        const val = input.value.trim();
+                        if (!val) return;
+                        const newStages = [...(settings.production_stages || []), val];
+                        const newColors = { ...(settings.production_stage_colors || {}), [val]: '#6b7280' };
+                        await supabase.from('settings').update({ production_stages: newStages, production_stage_colors: newColors }).eq('id', settings.id);
+                        setSettings({ ...settings, production_stages: newStages, production_stage_colors: newColors });
+                        input.value = '';
+                      }} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        + Add Stage
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#92400e', marginBottom: '4px' }}>Tips</div>
+                    <div style={{ fontSize: '12px', color: '#b45309', lineHeight: 1.6 }}>
+                      • Stages appear left to right on the production board<br/>
+                      • Click the color swatch to change a stage color<br/>
+                      • Jobs enter production at the first stage automatically
+                    </div>
                   </div>
                 </div>
               )}
