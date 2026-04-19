@@ -13,7 +13,7 @@ export async function GET(request) {
     const limit = 24;
     const skip = (page - 1) * limit;
 
-    let url = BASE_URL + "/products/?limit=" + limit + "&skip=" + skip;
+    let url = BASE_URL + "/styles/?limit=" + limit + "&skip=" + skip;
     if (search) url += "&search=" + encodeURIComponent(search);
     if (brand) url += "&brandName=" + encodeURIComponent(brand);
 
@@ -23,6 +23,7 @@ export async function GET(request) {
         "Authorization": "Basic " + credentials,
         "Accept": "application/json",
       },
+      next: { revalidate: 3600 },
     });
 
     if (!res.ok) {
