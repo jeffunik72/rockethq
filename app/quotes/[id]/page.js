@@ -335,26 +335,15 @@ export default function QuoteDetailPage({ params }) {
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Sales Rep</div>
                 <div style={{ marginBottom: '14px' }}>
-                  {editMode ? (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {staff.map(s => (
-                        <button
-                          key={s.id}
-                          onClick={() => updateQuoteField('sales_rep', s.name)}
-                          style={{ padding: '4px 12px', background: quote.sales_rep === s.name ? '#2563eb' : '#f3f4f6', color: quote.sales_rep === s.name ? 'white' : '#374151', border: '1px solid', borderColor: quote.sales_rep === s.name ? '#2563eb' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
-                          {s.name}
-                        </button>
-                      ))}
-                      {quote.sales_rep && (
-                        <button onClick={() => updateQuoteField('sales_rep', '')} style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '100px', fontSize: '11px', color: '#9ca3af', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
-                      )}
-                    </div>
-                  ) : (
-                    <span style={{ padding: '4px 12px', background: quote.sales_rep ? '#eff6ff' : '#f3f4f6', color: quote.sales_rep ? '#2563eb' : '#9ca3af', border: '1px solid', borderColor: quote.sales_rep ? '#bfdbfe' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>
-                      {quote.sales_rep || 'Unassigned'}
-                    </span>
-                  )}
+                  <select
+                    value={quote.sales_rep || ''}
+                    onChange={e => updateQuoteField('sales_rep', e.target.value)}
+                    disabled={!editMode}
+                    style={{ padding: '5px 10px', border: '1px solid', borderColor: quote.sales_rep ? '#bfdbfe' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600, fontFamily: 'inherit', background: quote.sales_rep ? '#eff6ff' : '#f3f4f6', color: quote.sales_rep ? '#2563eb' : '#9ca3af', cursor: editMode ? 'pointer' : 'default', outline: 'none', appearance: editMode ? 'auto' : 'none' }}
+                  >
+                    <option value="">Unassigned</option>
+                    {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
                 </div>
 
                 <div style={{ height: '1px', background: '#f3f4f6', marginBottom: '12px' }} />
