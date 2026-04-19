@@ -223,7 +223,7 @@ invoiceId: invoice.id,
               <div key={quote.id} style={{ background: 'white', border: '2px solid #fde68a', borderRadius: '12px', padding: '20px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '2px' }}>Q-{String(i + 1).padStart(4, '0')}</div>
+                    <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '2px' }}>Q-{String(quote.quote_number || i + 1).padStart(4, '0')}</div>
                     {quote.due_date && <div style={{ fontSize: '12px', color: '#6b7280' }}>Valid until: {quote.due_date}</div>}
                   </div>
                   <div style={{ fontSize: '22px', fontWeight: 700, color: '#111827' }}>${(quote.total || 0).toFixed(2)}</div>
@@ -283,7 +283,7 @@ invoiceId: invoice.id,
                 <div key={invoice.id} style={{ background: 'white', border: `1px solid ${!isPaid ? '#fecaca' : '#86efac'}`, borderRadius: '12px', padding: '20px', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '2px' }}>INV-{String(i + 1).padStart(4, '0')}</div>
+                      <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '2px' }}>INV-{String(invoice.invoice_number || i + 1).padStart(4, '0')}</div>
                       <div style={{ fontSize: '12px', color: '#6b7280' }}>{new Date(invoice.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -341,7 +341,7 @@ invoiceId: invoice.id,
               <div key={order.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '2px' }}>ORD-{String(i + 1).padStart(4, '0')}</div>
+                    <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '2px' }}>ORD-{String(order.order_number || i + 1).padStart(4, '0')}</div>
                     {order.due_date && <div style={{ fontSize: '12px', color: '#6b7280' }}>Due: {order.due_date}</div>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -400,7 +400,7 @@ invoiceId: invoice.id,
               return (
                 <div key={quote.id} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px 20px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>Q-{String(i + 1).padStart(4, '0')}</div>
+                    <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>Q-{String(quote.quote_number || i + 1).padStart(4, '0')}</div>
                     {quote.rejection_reason && <div style={{ fontSize: '12px', color: '#dc2626' }}>✗ {quote.rejection_reason}</div>}
                     {quote.approved_at && <div style={{ fontSize: '12px', color: '#16a34a' }}>✓ Accepted {new Date(quote.approved_at).toLocaleDateString()}</div>}
                   </div>

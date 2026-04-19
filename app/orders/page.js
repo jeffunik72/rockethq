@@ -164,7 +164,7 @@ export default function OrdersPage() {
                   return (
                     <tr key={o.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>
-                        ORD-{String(i + 1).padStart(4, '0')}
+                        ORD-{String(o.order_number || i + 1).padStart(4, '0')}
                       </td>
                       <td style={{ padding: '10px 16px', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600 }}>{o.customers?.name || 'N/A'}</div>
@@ -227,7 +227,7 @@ export default function OrdersPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Linked Quote (optional)</label>
                 <select value={form.quote_id} onChange={e => setForm({ ...form, quote_id: e.target.value })} style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}>
                   <option value="">No linked quote</option>
-                  {quotes.map((q, i) => <option key={q.id} value={q.id}>Q-{String(i + 1).padStart(4, '0')} — {q.customers?.name} — ${q.total}</option>)}
+                  {quotes.map((q, i) => <option key={q.id} value={q.id}>Q-{String(q.quote_number || i + 1).padStart(4, '0')} — {q.customers?.name} — ${q.total}</option>)}
                 </select>
               </div>
 
