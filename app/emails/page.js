@@ -212,8 +212,18 @@ export default function EmailsPage() {
                   </div>
                   {loadingBody ? (
                     <div style={{ color: '#9ca3af', fontSize: '13px' }}>Loading...</div>
+                  ) : emailBody && emailBody.includes('<') ? (
+                    <iframe
+                      srcDoc={emailBody}
+                      style={{ width: '100%', border: 'none', minHeight: '500px', borderRadius: '4px' }}
+                      sandbox="allow-same-origin"
+                      onLoad={e => {
+                        const iframe = e.target;
+                        iframe.style.height = iframe.contentDocument.body.scrollHeight + 'px';
+                      }}
+                    />
                   ) : (
-                    <div style={{ fontSize: '14px', color: '#374151', lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: emailBody || selectedEmail.snippet }} />
+                    <div style={{ fontSize: '14px', color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{emailBody || selectedEmail.snippet}</div>
                   )}
                 </div>
               </div>
