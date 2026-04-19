@@ -111,7 +111,7 @@ export default function JobDetailPage({ params }) {
   }
 
   function applyVehicleKit(idx, vehicle, wrapType, kit) {
-    if (!vehicle || !kit) return;
+    if (!vehicle || !kit) { alert('Vehicle not found in database. Add it in Settings → Pricing → Vehicles'); return; }
     const sqftMap = {
       'Full Wrap': vehicle.full_wrap_sqft,
       'Partial Wrap': vehicle.partial_wrap_sqft,
@@ -122,40 +122,46 @@ export default function JobDetailPage({ params }) {
     };
     const sqft = sqftMap[wrapType] || vehicle.full_wrap_sqft || 0;
     const price = getKitSellPrice(kit, sqft);
-    const updated = [...items];
-    updated[idx] = {
-      ...updated[idx],
-      vehicle_year: String(vehicle.year),
-      vehicle_make: vehicle.make,
-      vehicle_model: vehicle.model,
-      wrap_type: wrapType,
-      width: sqft,
-      description: vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + ' - ' + wrapType,
-      unit_price: parseFloat(price.toFixed(2)),
-      quantity: 1,
-      total: parseFloat(price.toFixed(2)),
-    };
-    setItems(updated);
+    const unitPrice = parseFloat(price.toFixed(2));
+    setItems(prev => {
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        vehicle_year: String(vehicle.year),
+        vehicle_make: vehicle.make,
+        vehicle_model: vehicle.model,
+        wrap_type: wrapType,
+        width: sqft,
+        description: vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model + ' - ' + wrapType,
+        unit_price: unitPrice,
+        quantity: 1,
+        total: unitPrice,
+      };
+      return updated;
+    });
     setShowVehicleSearch(null);
     setVehicleSearch('');
   }
 
   function applyLargeFormatKit(idx, kit, sqft, width, height, qty) {
     if (!kit || !sqft) return;
-    const price = getKitSellPrice(kit, sqft);
-    const unitPrice = parseFloat((price / (qty || 1)).toFixed(2));
-    const updated = [...items];
-    updated[idx] = {
-      ...updated[idx],
-      width: width,
-      height: height,
-      quantity: qty || 1,
-      material: kit.name,
-      description: updated[idx].description || (width + 'ft x ' + height + 'ft ' + kit.name),
-      unit_price: unitPrice,
-      total: parseFloat(price.toFixed(2)),
-    };
-    setItems(updated);
+    const totalPrice = getKitSellPrice(kit, sqft);
+    const unitPrice = parseFloat((totalPrice / (qty || 1)).toFixed(2));
+    const totalFinal = parseFloat((unitPrice * (qty || 1)).toFixed(2));
+    setItems(prev => {
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        width: width,
+        height: height,
+        quantity: qty || 1,
+        material: kit.name,
+        description: updated[idx].description || (width + 'ft x ' + height + 'ft ' + kit.name),
+        unit_price: unitPrice,
+        total: totalFinal,
+      };
+      return updated;
+    });
   }
 
   function updateItem(index, field, value) {
