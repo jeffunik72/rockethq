@@ -53,6 +53,7 @@ export default function JobDetailPage({ params }) {
   const [kits, setKits] = useState([]);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [showVehicleSearch, setShowVehicleSearch] = useState(null); // item idx
+  const [selectedKits, setSelectedKits] = useState({}); // idx -> kit_id
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -555,7 +556,7 @@ export default function JobDetailPage({ params }) {
                                   </div>
                                   <div>
                                     <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>KIT/MATERIAL</div>
-                                    <select value={item.kit_id || ''} onChange={e => updateItem(idx, 'kit_id', e.target.value)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                    <select value={selectedKits[idx] || ''} onChange={e => setSelectedKits({...selectedKits, [idx]: e.target.value})} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
                                       <option value="">Select kit...</option>
                                       {kits.filter(k => ['large_format', 'sign', 'banner', 'window'].includes(k.category)).map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
                                     </select>
@@ -567,12 +568,14 @@ export default function JobDetailPage({ params }) {
                                   <button
                                     onClick={() => {
                                       const sqft = (parseFloat(item.width) || 0) * (parseFloat(item.height) || 0);
-                                      const kit = kits.find(k => k.id === item.kit_id);
-                                      if (!sqft || !kit) { alert('Enter width, height and select a kit first'); return; }
+                                      const kitId = selectedKits[idx];
+                                      const kit = kits.find(k => k.id === kitId);
+                                      if (!sqft) { alert('Enter width and height first'); return; }
+                                      if (!kit) { alert('Select a kit first'); return; }
                                       applyLargeFormatKit(idx, kit, sqft * (item.quantity || 1));
                                     }}
-                                    disabled={!item.width || !item.height || !item.kit_id}
-                                    style={{ padding: '7px 14px', background: (!item.width || !item.height || !item.kit_id) ? '#e5e7eb' : '#16a34a', color: (!item.width || !item.height || !item.kit_id) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.width || !item.height || !item.kit_id) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                    disabled={!item.width || !item.height || !selectedKits[idx]}
+                                    style={{ padding: '7px 14px', background: (!item.width || !item.height || !selectedKits[idx]) ? '#e5e7eb' : '#16a34a', color: (!item.width || !item.height || !selectedKits[idx]) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.width || !item.height || !selectedKits[idx]) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                                   >
                                     ⚡ Calculate
                                   </button>
@@ -671,7 +674,7 @@ export default function JobDetailPage({ params }) {
                                   </div>
                                   <div>
                                     <div style={{ fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>KIT</div>
-                                    <select value={item.kit_id || ''} onChange={e => updateItem(idx, 'kit_id', e.target.value)} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
+                                    <select value={selectedKits[idx] || ''} onChange={e => setSelectedKits({...selectedKits, [idx]: e.target.value})} style={{ width: '100%', padding: '7px 8px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontFamily: 'inherit' }}>
                                       <option value="">Select kit...</option>
                                       {kits.filter(k => k.category === 'vehicle_wrap').map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
                                     </select>
@@ -679,11 +682,11 @@ export default function JobDetailPage({ params }) {
                                   <button
                                     onClick={() => {
                                       const vehicle = vehicles.find(v => v.year === parseInt(item.vehicle_year) && v.make === item.vehicle_make && v.model === item.vehicle_model);
-                                      const kit = kits.find(k => k.id === item.kit_id);
+                                      const kit = kits.find(k => k.id === selectedKits[idx]);
                                       applyVehicleKit(idx, vehicle, item.wrap_type, kit);
                                     }}
-                                    disabled={!item.vehicle_make || !item.wrap_type || !item.kit_id}
-                                    style={{ padding: '7px 14px', background: (!item.vehicle_make || !item.wrap_type || !item.kit_id) ? '#e5e7eb' : '#2563eb', color: (!item.vehicle_make || !item.wrap_type || !item.kit_id) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.vehicle_make || !item.wrap_type || !item.kit_id) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                                    disabled={!item.vehicle_make || !item.wrap_type || !selectedKits[idx]}
+                                    style={{ padding: '7px 14px', background: (!item.vehicle_make || !item.wrap_type || !selectedKits[idx]) ? '#e5e7eb' : '#2563eb', color: (!item.vehicle_make || !item.wrap_type || !selectedKits[idx]) ? '#9ca3af' : 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: (!item.vehicle_make || !item.wrap_type || !selectedKits[idx]) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                                   >
                                     ⚡ Calculate
                                   </button>
