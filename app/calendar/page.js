@@ -96,28 +96,55 @@ export default function CalendarPage() {
     const events = [];
 
     quotes.filter(q => q.due_date === dateStr).forEach(q => events.push({
-      id: 'q-' + q.id, type: 'quote', title: (q.customers?.name || 'Quote') + ' — Quote Due',
-      color: STATUS_COLORS[q.status] || '#3b82f6', status: q.status,
-      link: '/quotes/' + q.id, time: null,
+      id: 'q-' + q.id,
+      type: 'quote',
+      title: (q.customers?.name || 'Quote') + ' — Quote Due',
+      number: 'Q-' + String(q.quote_number || '').padStart(4, '0'),
+      customer: q.customers?.name || 'Unknown Customer',
+      color: STATUS_COLORS[q.status] || '#3b82f6',
+      status: q.status,
+      link: '/quotes/' + q.id,
+      time: null,
+      total: q.total,
     }));
 
     orders.filter(o => o.due_date === dateStr).forEach(o => events.push({
-      id: 'o-' + o.id, type: 'order', title: (o.customers?.name || 'Order') + ' — Order Due',
-      color: STATUS_COLORS[o.status] || '#8b5cf6', status: o.status,
-      link: '/orders/' + o.id, time: null,
+      id: 'o-' + o.id,
+      type: 'order',
+      title: (o.customers?.name || 'Order') + ' — Order Due',
+      number: 'ORD-' + String(o.order_number || '').padStart(4, '0'),
+      customer: o.customers?.name || 'Unknown Customer',
+      color: STATUS_COLORS[o.status] || '#8b5cf6',
+      status: o.status,
+      link: '/orders/' + o.id,
+      time: null,
+      total: o.total,
     }));
 
     jobs.filter(j => j.due_date === dateStr).forEach(j => events.push({
-      id: 'j-' + j.id, type: 'job', title: j.title || (j.customers?.name + ' — Production'),
-      color: '#f97316', status: j.stage, link: '/production', time: null,
+      id: 'j-' + j.id,
+      type: 'job',
+      title: j.title || (j.customers?.name + ' — Production'),
+      number: j.title || 'Production Job',
+      customer: j.customers?.name || 'Production',
+      color: '#f97316',
+      status: j.stage,
+      link: '/production',
+      time: null,
     }));
 
     googleEvents.filter(e => {
       const eDate = (e.start?.date || e.start?.dateTime || '').slice(0, 10);
       return eDate === dateStr;
     }).forEach(e => events.push({
-      id: 'g-' + e.id, type: 'google', title: e.summary || '(No title)',
-      color: '#2563eb', status: null, link: null,
+      id: 'g-' + e.id,
+      type: 'google',
+      title: e.summary || '(No title)',
+      number: null,
+      customer: e.summary || '(No title)',
+      color: '#2563eb',
+      status: 'Calendar',
+      link: null,
       time: e.start?.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null,
     }));
 
@@ -269,11 +296,13 @@ export default function CalendarPage() {
                           <div
                             key={event.id}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                            style={{ background: event.color, color: 'white', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}
+                            style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '3px solid ' + event.color, borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer', lineHeight: 1.4, marginBottom: '1px' }}
                             title={event.title}
                           >
-                            {event.time && <span style={{ opacity: 0.8 }}>{event.time} </span>}
-                            {event.title}
+                            {event.number && <div style={{ fontWeight: 700, color: '#111827', fontSize: '11px' }}>{event.number}</div>}
+                            <div style={{ fontWeight: 600, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.customer}</div>
+                            {event.time && <div style={{ color: '#9ca3af', fontSize: '10px' }}>{event.time}</div>}
+                            <div style={{ display: 'inline-block', background: event.color, color: 'white', borderRadius: '3px', padding: '1px 4px', fontSize: '9px', fontWeight: 700, marginTop: '2px' }}>{event.status || event.type}</div>
                           </div>
                         ))}
                         {events.length > 3 && (
@@ -316,11 +345,12 @@ export default function CalendarPage() {
                           <div
                             key={event.id}
                             onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                            style={{ background: event.color, color: 'white', borderRadius: '6px', padding: '6px 8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', lineHeight: 1.4 }}
+                            style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '4px solid ' + event.color, borderRadius: '6px', padding: '6px 8px', fontSize: '12px', cursor: 'pointer', lineHeight: 1.5, marginBottom: '4px' }}
                           >
-                            {event.time && <div style={{ opacity: 0.8, fontSize: '10px' }}>{event.time}</div>}
-                            {event.title}
-                            {event.status && <div style={{ opacity: 0.8, fontSize: '10px', marginTop: '2px' }}>{event.status}</div>}
+                            {event.number && <div style={{ fontWeight: 700, color: '#111827', fontSize: '12px' }}>{event.number}</div>}
+                            <div style={{ fontWeight: 600, color: '#374151' }}>{event.customer}</div>
+                            {event.time && <div style={{ color: '#9ca3af', fontSize: '10px' }}>{event.time}</div>}
+                            <div style={{ display: 'inline-block', background: event.color, color: 'white', borderRadius: '3px', padding: '1px 5px', fontSize: '10px', fontWeight: 700, marginTop: '3px' }}>{event.status || event.type}</div>
                           </div>
                         ))}
                         {events.length === 0 && (
@@ -354,17 +384,19 @@ export default function CalendarPage() {
                       <div
                         key={event.id}
                         onClick={() => event.link ? router.push(event.link) : setSelectedEvent(event)}
-                        style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '4px solid ' + event.color, borderRadius: '8px', padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
+                        style={{ background: 'white', border: '1px solid #e5e7eb', borderLeft: '5px solid ' + event.color, borderRadius: '8px', padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px' }}
                         onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'}
                         onMouseLeave={e => e.currentTarget.style.background = 'white'}
                       >
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: event.color, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>{event.title}</div>
+                          {event.number && <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: '2px' }}>{event.number}</div>}
+                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>{event.customer}</div>
                           {event.time && <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{event.time}</div>}
-                          {event.status && <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{event.status}</div>}
+                          {event.total && <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>${parseFloat(event.total).toFixed(2)}</div>}
                         </div>
-                        <div style={{ fontSize: '11px', padding: '3px 8px', background: event.color + '20', color: event.color, borderRadius: '100px', fontWeight: 600, textTransform: 'capitalize' }}>{event.type}</div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '11px', padding: '3px 10px', background: event.color, color: 'white', borderRadius: '100px', fontWeight: 700 }}>{event.status || event.type}</div>
+                        </div>
                       </div>
                     ))}
                   </div>
