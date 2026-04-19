@@ -25,29 +25,36 @@ export async function GET(request) {
     });
 
     const payload = res.data.payload;
-    let body = '';
+    let htmlBody = '';
+    let plainBody = '';
 
-    function extractBody(part) {
-      if (!part) return '';
+    function extractParts(part) {
+      if (!part) return;
+      
       if (part.mimeType === 'text/html' && part.body?.data) {
-        return Buffer.from(part.body.data, 'base64').toString('utf-8');
+        htmlBody = Buffer.from(part.body.data, 'base64url').toString('utf-8');
+      } else if (part.mimeType === 'text/plain' && part.body?.data) {
+        plainBody = Buffer.from(part.body.data, 'base64url').toString('utf-8');
       }
-      if (part.mimeType === 'text/plain' && part.body?.data) {
-        return '<pre style="white-space:pre-wrap;font-family:inherit">' + Buffer.from(part.body.data, 'base64').toString('utf-8') + '</pre>';
-      }
+      
       if (part.parts) {
-        for (const p of part.parts) {
-          const result = extractBody(p);
-          if (result) return result;
-        }
+        part.parts.forEach(p => extractParts(p));
       }
-      return '';
     }
 
-    body = extractBody(payload);
-    if (!body && payload?.body?.data) {
-      body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
+    extractParts(payload);
+
+    // If no parts found check body directly
+    if (!htmlBody && !plainBody && payload?.body?.data) {
+      const decoded = Buffer.from(payload.body.data, 'base64url').toString('utf-8');
+      if (payload.mimeType === 'text/html') {
+        htmlBody = decoded;
+      } else {
+        plainBody = decoded;
+      }
     }
+
+    const body = htmlBody || (plainBody ? '<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#374151">' + plainBody + '</pre>' : '');
 
     return Response.json({ body, snippet: res.data.snippet });
   } catch (err) {
