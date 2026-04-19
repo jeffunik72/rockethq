@@ -122,7 +122,7 @@ export default function ProductionPage() {
                   <option value="all">All Methods</option>
                   {imprintMethods.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
-                <button onClick={() => router.push('/settings#production')} style={{ padding: '7px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button onClick={() => router.push('/settings?section=production')} style={{ padding: '7px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                   ⚙ Manage Stages
                 </button>
               </div>

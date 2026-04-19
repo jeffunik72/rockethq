@@ -2,7 +2,7 @@
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 
@@ -31,6 +31,7 @@ const IMPRINT_METHODS = [
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('company');
+  const searchParams = useSearchParams();
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +39,11 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [checking, setChecking] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section) setActiveSection(section);
+  }, [searchParams]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
