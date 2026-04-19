@@ -167,23 +167,17 @@ export default function QuoteDetailPage({ params }) {
 
           {/* Top Bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
-                Back to Quotes
-              </button>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {Object.keys(statusColors).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => updateStatus(s)}
-                    style={{ padding: '5px 12px', background: quote.status === s ? statusColors[s].bg : 'white', color: quote.status === s ? statusColors[s].color : '#9ca3af', border: '1px solid', borderColor: quote.status === s ? statusColors[s].color : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <button onClick={() => router.push('/quotes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', fontWeight: 600, fontFamily: 'inherit', padding: 0 }}>
+              Back to Quotes
+            </button>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                value={quote.status}
+                onChange={e => updateStatus(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid', borderColor: sc.color, borderRadius: '7px', fontSize: '13px', fontWeight: 700, fontFamily: 'inherit', background: sc.bg, color: sc.color, cursor: 'pointer', outline: 'none' }}
+              >
+                {Object.keys(statusColors).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
               {!editMode ? (
                 <button onClick={() => setEditMode(true)} style={{ padding: '8px 14px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '7px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Edit</button>
               ) : (
@@ -251,14 +245,7 @@ export default function QuoteDetailPage({ params }) {
                       </select>
                     ) : <span>{quote.sales_rep || '—'}</span>}
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                    <span style={{ color: '#6b7280' }}>Status:</span>
-                    {editMode ? (
-                      <select value={quote.status} onChange={e => updateStatus(e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit' }}>
-                        {Object.keys(statusColors).map(s => <option key={s}>{s}</option>)}
-                      </select>
-                    ) : <span style={{ background: sc.bg, color: sc.color, padding: '1px 8px', borderRadius: '100px', fontSize: '11px', fontWeight: 600 }}>{quote.status}</span>}
-                  </div>
+
                 </div>
               </div>
 
