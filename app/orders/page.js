@@ -148,7 +148,7 @@ export default function OrdersPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  {['Order #', 'Customer', 'Due Date', 'Total', 'Status', 'Payment', 'Actions'].map(h => (
+                  {['Order #', 'Customer', 'Due Date', 'Total', 'Status', 'Payment'].map(h => (
                     <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>{h}</th>
                   ))}
                 </tr>
@@ -192,10 +192,7 @@ export default function OrdersPage() {
                       </td>
                       <td style={{ padding: '10px 16px' }}>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button onClick={() => router.push('/orders/' + o.id)} style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>View</button>
-                          <button onClick={() => sendInvoice(o)} style={{ padding: '4px 10px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Send Invoice</button>
-                        </div>
-                      </td>
+                          <button onClick={() => router.pus</td>
                     </tr>
                   );
                 })}

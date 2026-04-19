@@ -183,7 +183,7 @@ export default function QuotesPage() {
                 {quotes.map((q, i) => {
                   const sc = statusColors[q.status] || statusColors['New Quote'];
                   return (
-                    <tr key={q.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <tr key={q.id} onClick={() => router.push('/quotes/' + q.id)} style={{ borderBottom: '1px solid #f3f4f6', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'} onMouseLeave={e => e.currentTarget.style.background = 'white'}>
                       <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb' }}>{settings?.quote_prefix || 'Q'}-{String(q.quote_number || i + 1).padStart(4, '0')}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600 }}>{q.customers?.name || 'N/A'}</div>
