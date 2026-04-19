@@ -235,7 +235,7 @@ export default function QuoteDetailPage({ params }) {
 
           {/* Quote Header — condensed */}
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
               {/* Customer */}
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Customer</div>
@@ -331,23 +331,6 @@ export default function QuoteDetailPage({ params }) {
                 </div>
               </div>
 
-              {/* Sales Rep + Status */}
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Details</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                    <span style={{ color: '#6b7280' }}>Sales Rep:</span>
-                    {editMode ? (
-                      <select value={quote.sales_rep || ''} onChange={e => updateQuoteField('sales_rep', e.target.value)} style={{ border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '11px', padding: '2px 4px', fontFamily: 'inherit', maxWidth: '120px' }}>
-                        <option value="">Select rep...</option>
-                        {staff.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
-                    ) : <span>{quote.sales_rep || '—'}</span>}
-                  </div>
-
-                </div>
-              </div>
-
               {/* Shipping */}
               <div>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>Shipping</div>
@@ -369,6 +352,31 @@ export default function QuoteDetailPage({ params }) {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Sales Rep pill row */}
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Sales Rep:</span>
+              {editMode ? (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {staff.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => updateQuoteField('sales_rep', s.name)}
+                      style={{ padding: '4px 12px', background: quote.sales_rep === s.name ? '#2563eb' : '#f3f4f6', color: quote.sales_rep === s.name ? 'white' : '#374151', border: '1px solid', borderColor: quote.sales_rep === s.name ? '#2563eb' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                  {quote.sales_rep && (
+                    <button onClick={() => updateQuoteField('sales_rep', '')} style={{ padding: '4px 10px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '100px', fontSize: '11px', color: '#9ca3af', cursor: 'pointer', fontFamily: 'inherit' }}>Clear</button>
+                  )}
+                </div>
+              ) : (
+                <span style={{ padding: '4px 12px', background: quote.sales_rep ? '#eff6ff' : '#f3f4f6', color: quote.sales_rep ? '#2563eb' : '#9ca3af', border: '1px solid', borderColor: quote.sales_rep ? '#bfdbfe' : '#e5e7eb', borderRadius: '100px', fontSize: '12px', fontWeight: 600 }}>
+                  {quote.sales_rep || 'Unassigned'}
+                </span>
+              )}
             </div>
           </div>
 
