@@ -12,6 +12,7 @@ export default function QuotesPage() {
   const [checking, setChecking] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [sending, setSending] = useState(null);
+  const [settings, setSettings] = useState(null);
   const [form, setForm] = useState({ customer_id: '', due_date: '', notes: '', status: 'New Quote' });
   const [items, setItems] = useState([{ description: '', category: '', quantity: 1, unit_price: 0, total: 0 }]);
   const router = useRouter();
@@ -19,9 +20,14 @@ export default function QuotesPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) router.push('/login');
-      else { setChecking(false); fetchQuotes(); fetchCustomers(); }
+      else { setChecking(false); fetchQuotes(); fetchCustomers(); fetchSettings(); }
     });
   }, []);
+
+  async function fetchSettings() {
+    const { data } = await supabase.from('settings').select('*').single();
+    if (data) setSettings(data);
+  }
 
   async function fetchQuotes() {
     setLoading(true);
@@ -76,12 +82,22 @@ export default function QuotesPage() {
   }
 
   async function createNewQuote() {
+    // Get next quote number from settings
+    const { data: settings } = await supabase.from('settings').select('next_quote_number, quote_prefix').single();
+    const nextNum = settings?.next_quote_number || 1;
+    const prefix = settings?.quote_prefix || 'Q';
+    
+    // Create quote with sequential number
     const { data: quote, error } = await supabase
       .from('quotes')
-      .insert([{ status: 'New Quote', total: 0 }])
+      .insert([{ status: 'New Quote', total: 0, quote_number: nextNum }])
       .select()
       .single();
     if (error) { alert('Error: ' + error.message); return; }
+    
+    // Increment next quote number
+    await supabase.from('settings').update({ next_quote_number: nextNum + 1 }).eq('id', settings.id);
+    
     router.push('/quotes/' + quote.id);
   }
 
@@ -97,7 +113,7 @@ export default function QuotesPage() {
       .select('*')
       .eq('quote_id', quote.id);
 
-    const quoteNumber = `Q-${String(index + 1).padStart(4, '0')}`;
+    const quoteNumber = (settings?.quote_prefix || 'Q') + '-' + String(quote.quote_number || index + 1).padStart(4, '0');
 
     const res = await fetch('/api/send-quote', {
       method: 'POST',
@@ -171,7 +187,7 @@ export default function QuotesPage() {
                   const sc = statusColors[q.status] || statusColors['New Quote'];
                   return (
                     <tr key={q.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => router.push('/quotes/' + q.id)}>Q-{String(i + 1).padStart(4, '0')}</td>
+                      <td style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, color: '#2563eb', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => router.push('/quotes/' + q.id)}>{settings?.quote_prefix || 'Q'}-{String(q.quote_number || i + 1).padStart(4, '0')}</td>
                       <td style={{ padding: '10px 16px', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600 }}>{q.customers?.name || 'N/A'}</div>
                         <div style={{ fontSize: '11px', color: '#6b7280' }}>{q.customers?.email}</div>

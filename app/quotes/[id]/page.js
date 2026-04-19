@@ -131,7 +131,7 @@ export default function QuoteDetailPage({ params }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        quote: { ...quote, quote_number: 'Q-' + id.slice(0,8).toUpperCase() },
+        quote: { ...quote, quote_number: (quote.quote_number ? 'Q-' + String(quote.quote_number).padStart(4, '0') : 'Q-' + id.slice(0,8).toUpperCase()) },
         customer,
         items,
       }),
