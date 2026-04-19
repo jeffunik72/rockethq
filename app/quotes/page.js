@@ -82,21 +82,18 @@ export default function QuotesPage() {
   }
 
   async function createNewQuote() {
-    // Get next quote number from settings
-    const { data: settings } = await supabase.from('settings').select('next_quote_number, quote_prefix').single();
-    const nextNum = settings?.next_quote_number || 1;
-    const prefix = settings?.quote_prefix || 'Q';
+    // Atomically get and increment quote number
+    const { data: numData, error: numError } = await supabase.rpc('get_next_quote_number');
+    if (numError) { alert('Error getting quote number: ' + numError.message); return; }
     
-    // Create quote with sequential number
+    const nextNum = numData;
+
     const { data: quote, error } = await supabase
       .from('quotes')
       .insert([{ status: 'New Quote', total: 0, quote_number: nextNum }])
       .select()
       .single();
     if (error) { alert('Error: ' + error.message); return; }
-    
-    // Increment next quote number
-    await supabase.from('settings').update({ next_quote_number: nextNum + 1 }).eq('id', settings.id);
     
     router.push('/quotes/' + quote.id);
   }
