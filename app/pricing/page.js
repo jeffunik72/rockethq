@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
@@ -9,7 +9,7 @@ const MATERIAL_CATEGORIES = ['vinyl', 'laminate', 'substrate', 'ink', 'other'];
 const KIT_CATEGORIES = ['vehicle_wrap', 'large_format', 'sign', 'banner', 'window', 'other'];
 const UNITS = ['sqft', 'linear_ft', 'sheet', 'roll', 'each'];
 
-export default function PricingPage() {
+function PricingPageInner() {
   const [tab, setTab] = useState('materials');
   const searchParams = useSearchParams();
   const [materials, setMaterials] = useState([]);
@@ -633,4 +633,8 @@ export default function PricingPage() {
       )}
     </div>
   );
+}
+
+export default function PricingPage() {
+  return <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh'}}>Loading...</div>}><PricingPageInner /></Suspense>;
 }

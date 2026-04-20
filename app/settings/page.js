@@ -1,6 +1,6 @@
 'use client';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Sidebar from '../components/Sidebar';
@@ -30,7 +30,7 @@ const IMPRINT_METHODS = [
   'Richardson',
 ];
 
-export default function SettingsPage() {
+function SettingsPageInner() {
   const [activeSection, setActiveSection] = useState('company');
   const searchParams = useSearchParams();
   const [settings, setSettings] = useState(null);
@@ -782,4 +782,8 @@ export default function SettingsPage() {
       </div>
     </div>
   );
+}
+
+export default function SettingsPage() {
+  return <Suspense fallback={<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh'}}>Loading...</div>}><SettingsPageInner /></Suspense>;
 }
