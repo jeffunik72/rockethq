@@ -41,6 +41,7 @@ const STATUS_BG_COLORS = {
 
 export default function CalendarPage() {
   const { data: googleSession } = useSession();
+  const [supabaseToken, setSupabaseToken] = useState(null);
   const [view, setView] = useState('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [quotes, setQuotes] = useState([]);
@@ -61,13 +62,19 @@ export default function CalendarPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) router.push('/login');
-      else { setChecking(false); fetchData(); }
+      else {
+        setChecking(false);
+        fetchData();
+        if (session.provider_token) setSupabaseToken(session.provider_token);
+      }
     });
   }, []);
 
+  const activeToken = googleSession?.accessToken || supabaseToken;
+
   useEffect(() => {
-    if (googleSession?.accessToken) fetchGoogleEvents();
-  }, [googleSession, currentDate]);
+    if (activeToken) fetchGoogleEvents();
+  }, [activeToken, currentDate]);
 
   async function fetchData() {
     const [{ data: quotesData }, { data: ordersData }, { data: tasksData }] = await Promise.all([
@@ -83,11 +90,11 @@ export default function CalendarPage() {
   }
 
   async function fetchGoogleEvents() {
-    if (!googleSession?.accessToken) return;
+    if (!activeToken) return;
     try {
       const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
       const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0).toISOString();
-      const res = await fetch('/api/calendar/events?token=' + encodeURIComponent(googleSession.accessToken) + '&start=' + start + '&end=' + end);
+      const res = await fetch('/api/calendar/events?token=' + encodeURIComponent(activeToken) + '&start=' + start + '&end=' + end);
       const data = await res.json();
       setGoogleEvents(data.events || []);
     } catch (err) {
@@ -102,7 +109,7 @@ export default function CalendarPage() {
       const res = await fetch('/api/calendar/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newEvent, accessToken: googleSession?.accessToken }),
+        body: JSON.stringify({ ...newEvent, accessToken: activeToken }),
       });
       const data = await res.json();
       if (data.success) {
@@ -296,7 +303,7 @@ export default function CalendarPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {!googleSession?.accessToken && (
+              {!activeToken && (
                 <button onClick={() => signIn('google')} style={{ padding: '6px 12px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <svg width="14" height="14" viewBox="0 0 18 18">
                     <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
@@ -619,7 +626,7 @@ export default function CalendarPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px' }}>Description</label>
                 <textarea value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} rows={3} placeholder="Optional details..." style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit', outline: 'none', resize: 'vertical' }} />
               </div>
-              {!googleSession?.accessToken && (
+              {!activeToken && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '10px 12px', fontSize: '12px', color: '#92400e' }}>
                   Connect Google Calendar to save events to your calendar
                 </div>
@@ -627,7 +634,7 @@ export default function CalendarPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '16px 24px', borderTop: '1px solid #e5e7eb' }}>
               <button onClick={() => setShowNewEvent(false)} style={{ padding: '8px 16px', background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>Cancel</button>
-              <button onClick={createGoogleEvent} disabled={savingEvent || !googleSession?.accessToken} style={{ padding: '8px 16px', background: savingEvent ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
+              <button onClick={createGoogleEvent} disabled={savingEvent || !activeToken} style={{ padding: '8px 16px', background: savingEvent ? '#93c5fd' : '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '13px', fontFamily: 'inherit' }}>
                 {savingEvent ? 'Saving...' : 'Save Event'}
               </button>
             </div>

@@ -19,22 +19,28 @@ export default function EmailsPage() {
   const [search, setSearch] = useState('');
   const [nextPageToken, setNextPageToken] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [supabaseToken, setSupabaseToken] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) router.push('/login');
-      else setChecking(false);
+      else {
+        setChecking(false);
+        if (session.provider_token) setSupabaseToken(session.provider_token);
+      }
     });
   }, []);
 
+  const activeToken = googleSession?.accessToken || supabaseToken;
+
   useEffect(() => {
-    if (googleSession?.accessToken) fetchEmails();
-  }, [googleSession]);
+    if (activeToken) fetchEmails();
+  }, [activeToken]);
 
   async function fetchEmails(pageToken = null, query = '') {
     setLoading(true);
-    const token = googleSession?.accessToken;
+    const token = activeToken;
     if (!token) { setLoading(false); return; }
     let url = '/api/gmail?limit=25&token=' + encodeURIComponent(token);
     if (pageToken) url += '&pageToken=' + pageToken;
@@ -50,7 +56,7 @@ export default function EmailsPage() {
 
   async function fetchEmailBody(id) {
     setLoadingBody(true);
-    const token = googleSession?.accessToken || '';
+    const token = activeToken || '';
     const res = await fetch('/api/gmail/message?id=' + id + '&token=' + encodeURIComponent(token));
     const data = await res.json();
     setEmailBody(data.body || data.snippet || '');
@@ -63,7 +69,7 @@ export default function EmailsPage() {
     const res = await fetch('/api/gmail/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...compose, accessToken: googleSession?.accessToken }),
+      body: JSON.stringify({ ...compose, accessToken: activeToken }),
     });
     const data = await res.json();
     if (data.success) {
@@ -101,7 +107,7 @@ export default function EmailsPage() {
 
   if (checking) return null;
 
-  if (status !== 'authenticated' || !googleSession?.accessToken) {
+  if (!activeToken && status !== 'authenticated') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <Topbar />
